@@ -8,6 +8,34 @@ https://napari.org/stable/plugins/guides.html?#readers
 import numpy as np
 
 
+# def napari_get_reader(path):
+#     """A basic implementation of a Reader contribution.
+
+#     Parameters
+#     ----------
+#     path : str or list of str
+#         Path to file, or list of paths.
+
+#     Returns
+#     -------
+#     function or None
+#         If the path is a recognized format, return a function that accepts the
+#         same path or list of paths, and returns a list of layer data tuples.
+#     """
+#     if isinstance(path, list):
+#         # reader plugins may be handed single path, or a list of paths.
+#         # if it is a list, it is assumed to be an image stack...
+#         # so we are only going to look at the first file.
+#         path = path[0]
+
+#     # if we know we cannot read the file, we immediately return None.
+#     if not path.endswith(".npy"):
+#         return None
+
+#     # otherwise we return the *function* that can read ``path``.
+#     return reader_function
+
+
 def napari_get_reader(path):
     """A basic implementation of a Reader contribution.
 
@@ -28,12 +56,14 @@ def napari_get_reader(path):
         # so we are only going to look at the first file.
         path = path[0]
 
-    # if we know we cannot read the file, we immediately return None.
-    if not path.endswith(".npy"):
+    # for now, only accept tifs
+    if not path.endswith(".tif"):
         return None
 
     # otherwise we return the *function* that can read ``path``.
     return reader_function
+
+
 
 
 def reader_function(path):
