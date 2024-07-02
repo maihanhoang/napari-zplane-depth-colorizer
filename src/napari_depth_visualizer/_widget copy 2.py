@@ -38,8 +38,6 @@ from skimage.color import rgb2gray
 import numpy as np
 from napari.utils.notifications import show_info
 import math
-from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QComboBox, QLineEdit
-from PyQt5.QtCore import Qt
 
 if TYPE_CHECKING:
     import napari
@@ -125,7 +123,6 @@ class ZProjection(Container):
         # append into/extend the container with your widgets
         self.extend(
             [
-                self._label,
                 self._image_input_layer,
                 self._slice_numbers,
                 self._image_output_name,
@@ -315,49 +312,36 @@ class Alternative(Container):
         super().__init__()
         self._viewer = viewer
         # use create_widget to generate widgets from type annotations
-        projection_types = {"choices": ['Average Intensity', 'Min Intensity', 'Max Intensity', 'Sum Slices', 'Standard Deviation', 'Median']}
+        self._image_input_layer = create_widget(
+            label="Input Image", annotation="napari.layers.Image"
+        )
         
-        # Red
-        self._red_label = create_widget(widget_type="Label", label="<b>Red</b>")
-        self._red_image_input_layer = create_widget(
-            label="Input Image", annotation="napari.layers.Image"
-        )
-        self._red_projection_type = create_widget(
-            label="Projection Type", 
-            options=projection_types
-        )
+        # slices_default = self._compute_default_slice_numbers()
+        
         self._red_slices = create_widget(
-            label="Slices", annotation=str
-        )
-        # Green
-        self._green_label = create_widget(widget_type="Label", label="<b>Green</b>")
-        self._green_image_input_layer = create_widget(
-            label="Input Image", annotation="napari.layers.Image"
-        )
-        self._green_projection_type = create_widget(
-            label="Projection Type", 
-            options=projection_types
+            label="Red", annotation=str
         )
         self._green_slices = create_widget(
-            label="Slices", annotation=str
-        )
-        # Blue
-        self._blue_label = create_widget(widget_type="Label", label="<b>Blue</b>")
-        self._blue_image_input_layer = create_widget(
-            label="Input Image", annotation="napari.layers.Image"
-        )
-        self._blue_projection_type = create_widget(
-            label="Projection Type", 
-            options=projection_types
+            label="Green", annotation=str
         )
         self._blue_slices = create_widget(
-            label="Slices", annotation=str
+            label="Blue", annotation=str
         )
-        # Output
         self._image_output_name = create_widget(
             label="Output Name", annotation=str, value="Z-projection result"
         )
         self._invert_checkbox = CheckBox(text="Set default slice numbers")
+        self._projection_type = create_widget(
+            label="Projection Type", 
+            options={"choices": ['Average Intensity', 'Min Intensity', 'Max Intensity', 'Sum Slices', 'Standard Deviation', 'Median']}
+        )
+        # self._threshold_slider = create_widget(
+        #     label="Threshold", annotation=float, widget_type="FloatSlider"
+        # )
+        # self._threshold_slider.min = 0
+        # self._threshold_slider.max = 1
+        # # use magicgui widgets directly
+        # self._invert_checkbox = CheckBox(text="Keep pixels below threshold")
 
         self._start_processing = create_widget(
             label="Create Composite", widget_type="PushButton"
@@ -377,19 +361,13 @@ class Alternative(Container):
         # append into/extend the container with your widgets
         self.extend(
             [
-                self._red_label,
-                self._red_image_input_layer,
-                self._red_projection_type,
+                self._image_input_layer,
                 self._red_slices,
-                self._green_label,
-                self._green_image_input_layer,
-                self._green_projection_type,
                 self._green_slices,
-                self._blue_label,
-                self._blue_image_input_layer,
-                self._blue_projection_type,
                 self._blue_slices,
                 self._image_output_name,
+                self._projection_type,
+                # self._threshold_slider,
                 self._invert_checkbox,
                 self._start_processing 
             ]
@@ -398,11 +376,11 @@ class Alternative(Container):
 
     def _compute_default_slice_numbers(self):
         
-        if self._red_image_input_layer.value is None:
+        if self._image_input_layer.value is None:
             slices_default = ["", "", ""]
             return slices_default
 
-        image_input = self._red_image_input_layer.value.data        
+        image_input = self._image_input_layer.value.data        
         t, z, y, x = image_input.shape
 
         # Default rounds down
@@ -440,7 +418,7 @@ class Alternative(Container):
     def _project_in_z_plane(self, slice_numbers):
 
         # TODO: check that input is valid
-        image_layer = self._red_image_input_layer.value
+        image_layer = self._image_input_layer.value
         image = image_layer.data # img_as_float(image_layer.data)
         
         if image_layer is None:
@@ -453,17 +431,17 @@ class Alternative(Container):
             show_info("Slice input is not valid.")
             return
 
-        if self._red_projection_type.value == "Average Intensity":
+        if self._projection_type.value == "Average Intensity":
             output = self._average_intensity(slice_numbers)
-        elif self._red_projection_type.value == "Min Intensity":
+        elif self._projection_type.value == "Min Intensity":
             output = self._min_intensity(slice_numbers)
-        elif self._red_projection_type.value == "Max Intensity":
+        elif self._projection_type.value == "Max Intensity":
             output = self._max_intensity(slice_numbers)
         # elif Projection_Type == "Sum Slices":
         #     output = _sum_slices(Input, Slices)
         # elif Projection_Type == "Standard Deviastion":
         #     output = _standard_deviation(Input, Slices)
-        elif self._red_projection_type.value == "Median":
+        elif self._projection_type.value == "Median":
             output = self._median_intensity(slice_numbers)
         else:
             show_info("Projection Type not valid.")
@@ -489,7 +467,7 @@ class Alternative(Container):
         4. input like ,:, or ::
         5. Overlapping planes
         """
-        image_input = self._red_image_input_layer.value.data
+        image_input = self._image_input_layer.value.data
 
         # Image dimensions
         t, z, y, x = image_input.shape
@@ -548,7 +526,7 @@ class Alternative(Container):
         Given image input has dimensions TZYX and slice_numbers as string e.g. "1, 2, 5:10:2"
         Returns concatenated slices TNYX with N being the number of slices the user inputs
         """
-        image_input = self._red_image_input_layer.value.data
+        image_input = self._image_input_layer.value.data
 
         # Get image dimensions
         t, z, y, x = image_input.shape
@@ -608,175 +586,68 @@ class Alternative(Container):
 
 
 
-class ExampleQWidget(QWidget):
-    def __init__(self, napari_viewer):
-        super().__init__()
-        self.viewer = napari_viewer
 
-        # # Create the main layout
-        # main_layout = QVBoxLayout()
-
-        # # Create a horizontal layout for the dropdowns
-        # dropdown_layout = QHBoxLayout()
-
-        # # Create the first dropdown
-        # self.label1 = QLabel("<b>Red</b>")
-        # self.dropdown1 = QComboBox()
-        # self.dropdown1.addItems(["Option 1", "Option 2", "Option 3"])
-
-        # # Create the second dropdown
-        # self.dropdown2 = QComboBox()
-        # self.dropdown2.addItems(["Choice A", "Choice B", "Choice C"])
-
-        # # Create the second dropdown
-        # self.dropdown3 = QLineEdit()
-        # self.dropdown3 # .addItems(["Choice A", "Choice B", "Choice C"])
-
-        # # Add dropdowns to the horizontal layout
-        # dropdown_layout.addWidget(self.label1)
-        # dropdown_layout.addWidget(self.dropdown1)
-        # dropdown_layout.addWidget(self.dropdown2)
-        # dropdown_layout.addWidget(self.dropdown3)
-
-        # # Add the horizontal layout to the main layout
-        # main_layout.addLayout(dropdown_layout)
-
-        # # Set the main layout to the widget
-        # self.setLayout(main_layout)
-
-        #-----------------------------------------------------------------------------
-        # Create the main layout
-        main_layout = QHBoxLayout()
-
-        # label layout
-
-        # # Create 1. vertical layout
-        # vertical_layout_1 = QVBoxLayout()
-        # #vertical_layout_1.addWidget(QLabel(""))
-        # vertical_layout_1.addWidget(QLabel("<b>Red</b>"))
-        # vertical_layout_1.addWidget(QLabel("<b>Green</b>"))
-        # vertical_layout_1.addWidget(QLabel("<b>Blue</b>"))
-
-        # # Create 0. vertical layout
-        vertical_layout_0 = QVBoxLayout()
-        label0 = QLabel("")
-        #label1.setMargin(margin)
-        vertical_layout_0.addWidget(label0)
-        vertical_layout_0.addWidget(QLabel("<b>Red</b>"))
-        vertical_layout_0.addWidget(QLabel("<b>Green</b>"))
-        vertical_layout_0.addWidget(QLabel("<b>Blue</b>"))
-
-
-        # # Create 1. vertical layout
-        vertical_layout_1 = QVBoxLayout()
-        label1 = QLabel("<b>Shift</b>")
-        #label1.setMargin(margin)
-        vertical_layout_1.addWidget(label1)
-        vertical_layout_1.addWidget(QLineEdit())
-        vertical_layout_1.addWidget(QLineEdit())
-        vertical_layout_1.addWidget(QLineEdit())
-
-        # Create 2. vertical layout
-        label2 = QLabel("<b>Projection Type</b>")
-        #label2.setMargin(margin)
-        shift_widget_1 = QComboBox()
-        shift_widget_1.addItems(["Option 1", "Option 2", "Option 3"])
-        shift_widget_2 = QComboBox()
-        shift_widget_2.addItems(["Option 1", "Option 2", "Option 3"])
-        shift_widget_3 = QComboBox()
-        shift_widget_3.addItems(["Option 1", "Option 2", "Option 3"])
-        
-        vertical_layout_2 = QVBoxLayout()
-        vertical_layout_2.addWidget(label2)
-        vertical_layout_2.addWidget(shift_widget_1)
-        vertical_layout_2.addWidget(shift_widget_2)
-        vertical_layout_2.addWidget(shift_widget_3)
-
-        # # Create 3. vertical layout
-        vertical_layout_3 = QVBoxLayout()
-        label3 = QLabel("<b>Slices</b>")
-        #label3.setMargin(margin)
-        vertical_layout_3.addWidget(label3)
-        vertical_layout_3.addWidget(QLineEdit())
-        vertical_layout_3.addWidget(QLineEdit())
-        vertical_layout_3.addWidget(QLineEdit())
-
-        # last layout to create composite
-        vertical_layout_last = QVBoxLayout()        
-        btn = QPushButton("Create Composite!")
-        btn.clicked.connect(self._on_click)
-        vertical_layout_last.addWidget(btn, 0, Qt.AlignCenter)
-        
-        # Putting everything together
-        vertical_layout_0.setAlignment(Qt.AlignTop)
-        vertical_layout_1.setAlignment(Qt.AlignTop)
-        vertical_layout_2.setAlignment(Qt.AlignTop)
-        vertical_layout_3.setAlignment(Qt.AlignTop)
-        vertical_layout_last.setAlignment(Qt.AlignTop)
-
-        main_layout.addLayout(vertical_layout_0)
-        main_layout.addLayout(vertical_layout_1)
-        main_layout.addLayout(vertical_layout_2)        
-        main_layout.addLayout(vertical_layout_3)
-        
-        main_main_layout = QVBoxLayout()
-        main_main_layout.addLayout(main_layout)
-        main_main_layout.addLayout(vertical_layout_last)
-        
-        self.setLayout(main_main_layout)
-        # self.setGeometry(100, 100, 400, 200)
-        # self.setWindowTitle('Aligning Vertical Layouts')
-        
-    def _on_click(self):
-        show_info("napari has", len(self.viewer.layers), "layers")
-
-# class ExampleQWidget(QWidget):
-#     def __init__(self):
+# # if we want even more control over our widget, we can use
+# # magicgui `Container`
+# class ImageThreshold(Container):
+#     def __init__(self, viewer: "napari.viewer.Viewer"):
 #         super().__init__()
-#         self.initUI()
+#         self._viewer = viewer
+#         # use create_widget to generate widgets from type annotations
+#         self._image_layer_combo = create_widget(
+#             label="Image", annotation="napari.layers.Image"
+#         )
+#         self._threshold_slider = create_widget(
+#             label="Threshold", annotation=float, widget_type="FloatSlider"
+#         )
+#         self._threshold_slider.min = 0
+#         self._threshold_slider.max = 1
+#         # use magicgui widgets directly
+#         self._invert_checkbox = CheckBox(text="Keep pixels below threshold")
 
-#     def initUI(self):
-#         # Create two vertical layouts
-#         layout1 = QVBoxLayout()
-#         layout2 = QVBoxLayout()
-#         layout3 = QVBoxLayout()
+#         # connect your own callbacks
+#         self._threshold_slider.changed.connect(self._threshold_im)
+#         self._invert_checkbox.changed.connect(self._threshold_im)
 
-#         # Add widgets to layout 1
-#         label1 = QLabel("Shift by:")
-#         text_input1 = QLineEdit()
-#         dropdown1 = QComboBox()
-#         dropdown1.addItems(["Option 1", "Option 2", "Option 3"])
+#         # append into/extend the container with your widgets
+#         self.extend(
+#             [
+#                 self._image_layer_combo,
+#                 self._threshold_slider,
+#                 self._invert_checkbox,
+#             ]
+#         )
 
-#         layout1.addWidget(label1)
-#         layout1.addWidget(text_input1)
-#         layout1.addWidget(dropdown1)
+#     def _threshold_im(self):
+#         image_layer = self._image_layer_combo.value
+#         if image_layer is None:
+#             return
 
-#         # Add widgets to layout 2 (same number and type of widgets as layout 1)
-#         label2 = QLabel("Projection Type:")
-#         text_input2 = QLineEdit()
-#         dropdown2 = QLineEdit()# QComboBox()
-#         # dropdown2.addItems(["Choice A", "Choice B", "Choice C"])
+#         image = img_as_float(image_layer.data)
+#         name = image_layer.name + "_thresholded"
+#         threshold = self._threshold_slider.value
+#         if self._invert_checkbox.value:
+#             thresholded = image < threshold
+#         else:
+#             thresholded = image > threshold
+#         if name in self._viewer.layers:
+#             self._viewer.layers[name].data = thresholded
+#         else:
+#             self._viewer.add_labels(thresholded, name=name)
 
-#         layout2.addWidget(label2)
-#         layout2.addWidget(text_input2)
-#         layout2.addWidget(dropdown2)
 
-#         # Add widgets to layout 3 (same number and type of widgets as layout 1 and 2)
-#         label3 = QLabel("# of slices:")
-#         text_input3 = QLineEdit()
-#         dropdown3 = QComboBox()
-#         dropdown3.addItems(["Choice A", "Choice B", "Choice C"])
+class ExampleQWidget(QWidget):
+    # your QWidget.__init__ can optionally request the napari viewer instance
+    # use a type annotation of 'napari.viewer.Viewer' for any parameter
+    def __init__(self, viewer: "napari.viewer.Viewer"):
+        super().__init__()
+        self.viewer = viewer
 
-#         layout3.addWidget(label3)
-#         layout3.addWidget(text_input3)
-#         layout3.addWidget(dropdown3)
+        btn = QPushButton("Click me!")
+        btn.clicked.connect(self._on_click)
 
-#         # Create a horizontal layout to align the vertical layouts
-#         main_layout = QHBoxLayout()
-#         main_layout.addLayout(layout1)
-#         main_layout.addLayout(layout2)
-#         main_layout.addLayout(layout3)
+        self.setLayout(QHBoxLayout())
+        self.layout().addWidget(btn)
 
-#         self.setLayout(main_layout)
-#         # self.setGeometry(100, 100, 400, 200)
-#         # self.setWindowTitle('Aligning Vertical Layouts')
+    def _on_click(self):
+        print("napari has", len(self.viewer.layers), "layers")
