@@ -38,7 +38,7 @@ from skimage.color import rgb2gray
 import numpy as np
 from napari.utils.notifications import show_info
 import math
-from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QComboBox, QLineEdit
+from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QComboBox, QLineEdit, QGridLayout
 from PyQt5.QtCore import Qt
 
 if TYPE_CHECKING:
@@ -608,77 +608,117 @@ class Alternative(Container):
 
 
 
+# class ExampleQWidget(QWidget):
+#     def __init__(self, napari_viewer):
+#         super().__init__()
+#         self.viewer = napari_viewer
+
+#         # Create the main layout
+#         main_layout = QHBoxLayout()
+
+#         # label layout
+#         # # Create 1. vertical layout
+#         # vertical_layout_1 = QVBoxLayout()
+#         # #vertical_layout_1.addWidget(QLabel(""))
+#         # vertical_layout_1.addWidget(QLabel("<b>Red</b>"))
+#         # vertical_layout_1.addWidget(QLabel("<b>Green</b>"))
+#         # vertical_layout_1.addWidget(QLabel("<b>Blue</b>"))
+
+#         # # Create 0. vertical layout
+#         vertical_layout_0 = QVBoxLayout()
+#         label0 = QLabel("")
+#         #label1.setMargin(margin)
+#         vertical_layout_0.addWidget(label0)
+#         vertical_layout_0.addWidget(QLabel("<b>Red</b>"))
+#         vertical_layout_0.addWidget(QLabel("<b>Green</b>"))
+#         vertical_layout_0.addWidget(QLabel("<b>Blue</b>"))
+
+
+#         # # Create 1. vertical layout
+#         vertical_layout_1 = QVBoxLayout()
+#         label1 = QLabel("<b>Shift</b>")
+#         #label1.setMargin(margin)
+#         vertical_layout_1.addWidget(label1)
+#         vertical_layout_1.addWidget(QLineEdit())
+#         vertical_layout_1.addWidget(QLineEdit())
+#         vertical_layout_1.addWidget(QLineEdit())
+
+#         # Create 2. vertical layout
+#         label2 = QLabel("<b>Projection Type</b>")
+#         #label2.setMargin(margin)
+#         shift_widget_1 = QComboBox()
+#         shift_widget_1.addItems(["Option 1", "Option 2", "Option 3"])
+#         shift_widget_2 = QComboBox()
+#         shift_widget_2.addItems(["Option 1", "Option 2", "Option 3"])
+#         shift_widget_3 = QComboBox()
+#         shift_widget_3.addItems(["Option 1", "Option 2", "Option 3"])
+        
+#         vertical_layout_2 = QVBoxLayout()
+#         vertical_layout_2.addWidget(label2)
+#         vertical_layout_2.addWidget(shift_widget_1)
+#         vertical_layout_2.addWidget(shift_widget_2)
+#         vertical_layout_2.addWidget(shift_widget_3)
+
+#         # # Create 3. vertical layout
+#         vertical_layout_3 = QVBoxLayout()
+#         label3 = QLabel("<b>Slices</b>")
+#         #label3.setMargin(margin)
+#         vertical_layout_3.addWidget(label3)
+#         vertical_layout_3.addWidget(QLineEdit())
+#         vertical_layout_3.addWidget(QLineEdit())
+#         vertical_layout_3.addWidget(QLineEdit())
+
+#         # last layout to create composite
+#         vertical_layout_last = QVBoxLayout()        
+#         btn = QPushButton("Create Composite!")
+#         btn.clicked.connect(self._on_click)
+#         vertical_layout_last.addWidget(btn, 0, Qt.AlignCenter)
+        
+#         # Putting everything together
+#         vertical_layout_0.setAlignment(Qt.AlignTop)
+#         vertical_layout_1.setAlignment(Qt.AlignTop)
+#         vertical_layout_2.setAlignment(Qt.AlignTop)
+#         vertical_layout_3.setAlignment(Qt.AlignTop)
+#         vertical_layout_last.setAlignment(Qt.AlignTop)
+
+#         main_layout.addLayout(vertical_layout_0)
+#         main_layout.addLayout(vertical_layout_1)
+#         main_layout.addLayout(vertical_layout_2)        
+#         main_layout.addLayout(vertical_layout_3)
+        
+#         main_main_layout = QVBoxLayout()
+#         main_main_layout.addLayout(main_layout)
+#         main_main_layout.addLayout(vertical_layout_last)
+        
+#         self.setLayout(main_main_layout)
+#         # self.setGeometry(100, 100, 400, 200)
+#         # self.setWindowTitle('Aligning Vertical Layouts')
+        
+#     def _on_click(self):
+#         show_info("napari has", len(self.viewer.layers), "layers")
+
+
 class ExampleQWidget(QWidget):
     def __init__(self, napari_viewer):
         super().__init__()
         self.viewer = napari_viewer
 
-        # # Create the main layout
-        # main_layout = QVBoxLayout()
-
-        # # Create a horizontal layout for the dropdowns
-        # dropdown_layout = QHBoxLayout()
-
-        # # Create the first dropdown
-        # self.label1 = QLabel("<b>Red</b>")
-        # self.dropdown1 = QComboBox()
-        # self.dropdown1.addItems(["Option 1", "Option 2", "Option 3"])
-
-        # # Create the second dropdown
-        # self.dropdown2 = QComboBox()
-        # self.dropdown2.addItems(["Choice A", "Choice B", "Choice C"])
-
-        # # Create the second dropdown
-        # self.dropdown3 = QLineEdit()
-        # self.dropdown3 # .addItems(["Choice A", "Choice B", "Choice C"])
-
-        # # Add dropdowns to the horizontal layout
-        # dropdown_layout.addWidget(self.label1)
-        # dropdown_layout.addWidget(self.dropdown1)
-        # dropdown_layout.addWidget(self.dropdown2)
-        # dropdown_layout.addWidget(self.dropdown3)
-
-        # # Add the horizontal layout to the main layout
-        # main_layout.addLayout(dropdown_layout)
-
-        # # Set the main layout to the widget
-        # self.setLayout(main_layout)
-
-        #-----------------------------------------------------------------------------
         # Create the main layout
-        main_layout = QHBoxLayout()
+        grid_layout = QGridLayout()
 
-        # label layout
+        # # Create 1. column
+        grid_layout.addWidget(QLabel(""), 0, 0)
+        grid_layout.addWidget(QLabel("<b>Red</b>"), 1, 0)
+        grid_layout.addWidget(QLabel("<b>Green</b>"), 2, 0)
+        grid_layout.addWidget(QLabel("<b>Blue</b>"), 3, 0)
 
-        # # Create 1. vertical layout
-        # vertical_layout_1 = QVBoxLayout()
-        # #vertical_layout_1.addWidget(QLabel(""))
-        # vertical_layout_1.addWidget(QLabel("<b>Red</b>"))
-        # vertical_layout_1.addWidget(QLabel("<b>Green</b>"))
-        # vertical_layout_1.addWidget(QLabel("<b>Blue</b>"))
+        # # Create 2. column
+        grid_layout.addWidget(QLabel("<b>Shift</b>"), 0, 1)
+        grid_layout.addWidget(QLineEdit(), 1, 1)
+        grid_layout.addWidget(QLineEdit(), 2, 1)
+        grid_layout.addWidget(QLineEdit(), 3, 1)
 
-        # # Create 0. vertical layout
-        vertical_layout_0 = QVBoxLayout()
-        label0 = QLabel("")
-        #label1.setMargin(margin)
-        vertical_layout_0.addWidget(label0)
-        vertical_layout_0.addWidget(QLabel("<b>Red</b>"))
-        vertical_layout_0.addWidget(QLabel("<b>Green</b>"))
-        vertical_layout_0.addWidget(QLabel("<b>Blue</b>"))
-
-
-        # # Create 1. vertical layout
-        vertical_layout_1 = QVBoxLayout()
-        label1 = QLabel("<b>Shift</b>")
-        #label1.setMargin(margin)
-        vertical_layout_1.addWidget(label1)
-        vertical_layout_1.addWidget(QLineEdit())
-        vertical_layout_1.addWidget(QLineEdit())
-        vertical_layout_1.addWidget(QLineEdit())
-
-        # Create 2. vertical layout
-        label2 = QLabel("<b>Projection Type</b>")
-        #label2.setMargin(margin)
+        # Create 3. column
         shift_widget_1 = QComboBox()
         shift_widget_1.addItems(["Option 1", "Option 2", "Option 3"])
         shift_widget_2 = QComboBox()
@@ -686,97 +726,36 @@ class ExampleQWidget(QWidget):
         shift_widget_3 = QComboBox()
         shift_widget_3.addItems(["Option 1", "Option 2", "Option 3"])
         
-        vertical_layout_2 = QVBoxLayout()
-        vertical_layout_2.addWidget(label2)
-        vertical_layout_2.addWidget(shift_widget_1)
-        vertical_layout_2.addWidget(shift_widget_2)
-        vertical_layout_2.addWidget(shift_widget_3)
+        grid_layout.addWidget(QLabel("<b>Projection Type</b>"), 0, 2)
+        grid_layout.addWidget(shift_widget_1, 1, 2)
+        grid_layout.addWidget(shift_widget_2, 2, 2)
+        grid_layout.addWidget(shift_widget_3, 3, 2)
 
-        # # Create 3. vertical layout
-        vertical_layout_3 = QVBoxLayout()
-        label3 = QLabel("<b>Slices</b>")
-        #label3.setMargin(margin)
-        vertical_layout_3.addWidget(label3)
-        vertical_layout_3.addWidget(QLineEdit())
-        vertical_layout_3.addWidget(QLineEdit())
-        vertical_layout_3.addWidget(QLineEdit())
+        # # Create 4. column
+        grid_layout.addWidget(QLabel("<b>Slices</b>"), 0, 3)
+        grid_layout.addWidget(QLineEdit(), 1, 3)
+        grid_layout.addWidget(QLineEdit(), 2, 3)
+        grid_layout.addWidget(QLineEdit(), 3, 3)
 
-        # last layout to create composite
-        vertical_layout_last = QVBoxLayout()        
-        btn = QPushButton("Create Composite!")
-        btn.clicked.connect(self._on_click)
-        vertical_layout_last.addWidget(btn, 0, Qt.AlignCenter)
+        # # last layout to create composite
+        # vertical_layout_last = QVBoxLayout()        
+        # btn = QPushButton("Create Composite!")
+        # btn.clicked.connect(self._on_click)
+        # vertical_layout_last.addWidget(btn, 0, Qt.AlignCenter)
+        button = QPushButton('Create Composite')
+        grid_layout.addWidget(button, 4, 1, 1, 3)
         
         # Putting everything together
-        vertical_layout_0.setAlignment(Qt.AlignTop)
-        vertical_layout_1.setAlignment(Qt.AlignTop)
-        vertical_layout_2.setAlignment(Qt.AlignTop)
-        vertical_layout_3.setAlignment(Qt.AlignTop)
-        vertical_layout_last.setAlignment(Qt.AlignTop)
-
-        main_layout.addLayout(vertical_layout_0)
-        main_layout.addLayout(vertical_layout_1)
-        main_layout.addLayout(vertical_layout_2)        
-        main_layout.addLayout(vertical_layout_3)
+        grid_layout.setAlignment(Qt.AlignTop)
+        # grid_layout.setAlignment(Qt.AlignTop)
+        # grid_layout.setAlignment(Qt.AlignTop)
+        # grid_layout.setAlignment(Qt.AlignTop)
+        # vertical_layout_last.setAlignment(Qt.AlignTop)
         
-        main_main_layout = QVBoxLayout()
-        main_main_layout.addLayout(main_layout)
-        main_main_layout.addLayout(vertical_layout_last)
-        
-        self.setLayout(main_main_layout)
+        self.setLayout(grid_layout)
         # self.setGeometry(100, 100, 400, 200)
         # self.setWindowTitle('Aligning Vertical Layouts')
         
     def _on_click(self):
         show_info("napari has", len(self.viewer.layers), "layers")
 
-# class ExampleQWidget(QWidget):
-#     def __init__(self):
-#         super().__init__()
-#         self.initUI()
-
-#     def initUI(self):
-#         # Create two vertical layouts
-#         layout1 = QVBoxLayout()
-#         layout2 = QVBoxLayout()
-#         layout3 = QVBoxLayout()
-
-#         # Add widgets to layout 1
-#         label1 = QLabel("Shift by:")
-#         text_input1 = QLineEdit()
-#         dropdown1 = QComboBox()
-#         dropdown1.addItems(["Option 1", "Option 2", "Option 3"])
-
-#         layout1.addWidget(label1)
-#         layout1.addWidget(text_input1)
-#         layout1.addWidget(dropdown1)
-
-#         # Add widgets to layout 2 (same number and type of widgets as layout 1)
-#         label2 = QLabel("Projection Type:")
-#         text_input2 = QLineEdit()
-#         dropdown2 = QLineEdit()# QComboBox()
-#         # dropdown2.addItems(["Choice A", "Choice B", "Choice C"])
-
-#         layout2.addWidget(label2)
-#         layout2.addWidget(text_input2)
-#         layout2.addWidget(dropdown2)
-
-#         # Add widgets to layout 3 (same number and type of widgets as layout 1 and 2)
-#         label3 = QLabel("# of slices:")
-#         text_input3 = QLineEdit()
-#         dropdown3 = QComboBox()
-#         dropdown3.addItems(["Choice A", "Choice B", "Choice C"])
-
-#         layout3.addWidget(label3)
-#         layout3.addWidget(text_input3)
-#         layout3.addWidget(dropdown3)
-
-#         # Create a horizontal layout to align the vertical layouts
-#         main_layout = QHBoxLayout()
-#         main_layout.addLayout(layout1)
-#         main_layout.addLayout(layout2)
-#         main_layout.addLayout(layout3)
-
-#         self.setLayout(main_layout)
-#         # self.setGeometry(100, 100, 400, 200)
-#         # self.setWindowTitle('Aligning Vertical Layouts')
