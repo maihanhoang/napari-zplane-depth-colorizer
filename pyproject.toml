@@ -64,8 +64,8 @@ where = ["src"]
 "*" = ["*.yaml"]
 
 
-#[tool.setuptools.dynamic]
-#version = {attr = "napari_depth_visualizer.__init__.__version__"}
+[tool.setuptools.dynamic]
+version = {attr = "napari_depth_visualizer.__init__.__version__"}
 
 [tool.black]
 line-length = 79
