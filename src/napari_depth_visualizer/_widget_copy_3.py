@@ -38,9 +38,11 @@ from skimage.color import rgb2gray
 import numpy as np
 from napari.utils.notifications import show_info
 import math
-
-if TYPE_CHECKING:
-    import napari
+from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QComboBox, QLineEdit, QGridLayout, QSpinBox
+from PyQt5.QtCore import Qt
+import napari
+# if TYPE_CHECKING:
+#     import napari
 
 
 @magic_factory(
@@ -123,6 +125,7 @@ class ZProjection(Container):
         # append into/extend the container with your widgets
         self.extend(
             [
+                self._label,
                 self._image_input_layer,
                 self._slice_numbers,
                 self._image_output_name,
@@ -312,47 +315,53 @@ class Alternative(Container):
         super().__init__()
         self._viewer = viewer
         # use create_widget to generate widgets from type annotations
-        self._image_input_layer = create_widget(
+        projection_types = {"choices": ['Average Intensity', 'Min Intensity', 'Max Intensity', 'Sum Slices', 'Standard Deviation', 'Median']}
+        
+        # Red
+        self._red_label = create_widget(widget_type="Label", label="<b>Red</b>")
+        self._red_image_input_layer = create_widget(
             label="Input Image", annotation="napari.layers.Image"
         )
-        
-        # slices_default = self._compute_default_slice_numbers()
-        
+        self._red_projection_type = create_widget(
+            label="Projection Type", 
+            options=projection_types
+        )
         self._red_slices = create_widget(
-            label="Red", annotation=str
+            label="Slices", annotation=str
+        )
+        # Green
+        self._green_label = create_widget(widget_type="Label", label="<b>Green</b>")
+        self._green_image_input_layer = create_widget(
+            label="Input Image", annotation="napari.layers.Image"
+        )
+        self._green_projection_type = create_widget(
+            label="Projection Type", 
+            options=projection_types
         )
         self._green_slices = create_widget(
-            label="Green", annotation=str
+            label="Slices", annotation=str
+        )
+        # Blue
+        self._blue_label = create_widget(widget_type="Label", label="<b>Blue</b>")
+        self._blue_image_input_layer = create_widget(
+            label="Input Image", annotation="napari.layers.Image"
+        )
+        self._blue_projection_type = create_widget(
+            label="Projection Type", 
+            options=projection_types
         )
         self._blue_slices = create_widget(
-            label="Blue", annotation=str
+            label="Slices", annotation=str
         )
+        # Output
         self._image_output_name = create_widget(
             label="Output Name", annotation=str, value="Z-projection result"
         )
         self._invert_checkbox = CheckBox(text="Set default slice numbers")
-        self._projection_type = create_widget(
-            label="Projection Type", 
-            options={"choices": ['Average Intensity', 'Min Intensity', 'Max Intensity', 'Sum Slices', 'Standard Deviation', 'Median']}
-        )
-        # self._threshold_slider = create_widget(
-        #     label="Threshold", annotation=float, widget_type="FloatSlider"
-        # )
-        # self._threshold_slider.min = 0
-        # self._threshold_slider.max = 1
-        # # use magicgui widgets directly
-        # self._invert_checkbox = CheckBox(text="Keep pixels below threshold")
 
         self._start_processing = create_widget(
             label="Create Composite", widget_type="PushButton"
         )
-
-        # # connect your own callbacks
-        # print("Red slices ", self._red_slices)
-        # # If slice numbers empty, set default slice numbers, otherwise check if input is valid
-        # # if self._red_slices.value=="" and self._green_slices.value=="" and self._blue_slices.value=="":
-        # #     print("Set default slices")
-        # #     self._start_processing.clicked.connect(self._set_default_slice_numbers)
 
         # Set default slice numbers
         self._invert_checkbox.changed.connect(self._set_default_slice_numbers)
@@ -361,13 +370,19 @@ class Alternative(Container):
         # append into/extend the container with your widgets
         self.extend(
             [
-                self._image_input_layer,
+                self._red_label,
+                self._red_image_input_layer,
+                self._red_projection_type,
                 self._red_slices,
+                self._green_label,
+                self._green_image_input_layer,
+                self._green_projection_type,
                 self._green_slices,
+                self._blue_label,
+                self._blue_image_input_layer,
+                self._blue_projection_type,
                 self._blue_slices,
                 self._image_output_name,
-                self._projection_type,
-                # self._threshold_slider,
                 self._invert_checkbox,
                 self._start_processing 
             ]
@@ -376,11 +391,11 @@ class Alternative(Container):
 
     def _compute_default_slice_numbers(self):
         
-        if self._image_input_layer.value is None:
+        if self._red_image_input_layer.value is None:
             slices_default = ["", "", ""]
             return slices_default
 
-        image_input = self._image_input_layer.value.data        
+        image_input = self._red_image_input_layer.value.data        
         t, z, y, x = image_input.shape
 
         # Default rounds down
@@ -418,7 +433,7 @@ class Alternative(Container):
     def _project_in_z_plane(self, slice_numbers):
 
         # TODO: check that input is valid
-        image_layer = self._image_input_layer.value
+        image_layer = self._red_image_input_layer.value
         image = image_layer.data # img_as_float(image_layer.data)
         
         if image_layer is None:
@@ -431,17 +446,17 @@ class Alternative(Container):
             show_info("Slice input is not valid.")
             return
 
-        if self._projection_type.value == "Average Intensity":
+        if self._red_projection_type.value == "Average Intensity":
             output = self._average_intensity(slice_numbers)
-        elif self._projection_type.value == "Min Intensity":
+        elif self._red_projection_type.value == "Min Intensity":
             output = self._min_intensity(slice_numbers)
-        elif self._projection_type.value == "Max Intensity":
+        elif self._red_projection_type.value == "Max Intensity":
             output = self._max_intensity(slice_numbers)
         # elif Projection_Type == "Sum Slices":
         #     output = _sum_slices(Input, Slices)
         # elif Projection_Type == "Standard Deviastion":
         #     output = _standard_deviation(Input, Slices)
-        elif self._projection_type.value == "Median":
+        elif self._red_projection_type.value == "Median":
             output = self._median_intensity(slice_numbers)
         else:
             show_info("Projection Type not valid.")
@@ -467,7 +482,7 @@ class Alternative(Container):
         4. input like ,:, or ::
         5. Overlapping planes
         """
-        image_input = self._image_input_layer.value.data
+        image_input = self._red_image_input_layer.value.data
 
         # Image dimensions
         t, z, y, x = image_input.shape
@@ -526,7 +541,7 @@ class Alternative(Container):
         Given image input has dimensions TZYX and slice_numbers as string e.g. "1, 2, 5:10:2"
         Returns concatenated slices TNYX with N being the number of slices the user inputs
         """
-        image_input = self._image_input_layer.value.data
+        image_input = self._red_image_input_layer.value.data
 
         # Get image dimensions
         t, z, y, x = image_input.shape
@@ -585,68 +600,110 @@ class Alternative(Container):
         return composite 
 
 
-
-# # if we want even more control over our widget, we can use
-# # magicgui `Container`
-# class ImageThreshold(Container):
-#     def __init__(self, viewer: "napari.viewer.Viewer"):
-#         super().__init__()
-#         self._viewer = viewer
-#         # use create_widget to generate widgets from type annotations
-#         self._image_layer_combo = create_widget(
-#             label="Image", annotation="napari.layers.Image"
-#         )
-#         self._threshold_slider = create_widget(
-#             label="Threshold", annotation=float, widget_type="FloatSlider"
-#         )
-#         self._threshold_slider.min = 0
-#         self._threshold_slider.max = 1
-#         # use magicgui widgets directly
-#         self._invert_checkbox = CheckBox(text="Keep pixels below threshold")
-
-#         # connect your own callbacks
-#         self._threshold_slider.changed.connect(self._threshold_im)
-#         self._invert_checkbox.changed.connect(self._threshold_im)
-
-#         # append into/extend the container with your widgets
-#         self.extend(
-#             [
-#                 self._image_layer_combo,
-#                 self._threshold_slider,
-#                 self._invert_checkbox,
-#             ]
-#         )
-
-#     def _threshold_im(self):
-#         image_layer = self._image_layer_combo.value
-#         if image_layer is None:
-#             return
-
-#         image = img_as_float(image_layer.data)
-#         name = image_layer.name + "_thresholded"
-#         threshold = self._threshold_slider.value
-#         if self._invert_checkbox.value:
-#             thresholded = image < threshold
-#         else:
-#             thresholded = image > threshold
-#         if name in self._viewer.layers:
-#             self._viewer.layers[name].data = thresholded
-#         else:
-#             self._viewer.add_labels(thresholded, name=name)
-
-
 class ExampleQWidget(QWidget):
-    # your QWidget.__init__ can optionally request the napari viewer instance
-    # use a type annotation of 'napari.viewer.Viewer' for any parameter
-    def __init__(self, viewer: "napari.viewer.Viewer"):
+    def __init__(self, napari_viewer):
         super().__init__()
-        self.viewer = viewer
+        self.viewer = napari_viewer
 
-        btn = QPushButton("Click me!")
-        btn.clicked.connect(self._on_click)
+        ### Define widgets ###
+        # Input
+        self._input_layer = QComboBox()
+        self._update_input_options()
 
-        self.setLayout(QHBoxLayout())
-        self.layout().addWidget(btn)
+        # Shift by
+        self._shift_1 = QSpinBox(minimum=-10, maximum=+10, value=-1)
+        self._shift_2 = QSpinBox(minimum=-10, maximum=+10, value=0)
+        self._shift_3 = QSpinBox(minimum=-10, maximum=+10, value=+1)
+
+        # Projection types
+        proj_type_options = ['Raw', 'Average Intensity', 'Min Intensity', 'Max Intensity',
+                            'Sum Slices', 'Standard Deviation', 'Median']
+        self._projection_types_1 = QComboBox()
+        self._projection_types_1.addItems(proj_type_options)
+        self._projection_types_1.setCurrentText("Average Intensity")
+        
+        self._projection_types_2 = QComboBox()
+        self._projection_types_2.addItems(proj_type_options)
+        self._projection_types_2.setCurrentText("Raw")
+
+        self._projection_types_3 = QComboBox()
+        self._projection_types_3.addItems(proj_type_options)
+        self._projection_types_3.setCurrentText("Average Intensity")
+
+        # Slices
+        self._slices_1 = QLineEdit()
+        self._slices_2 = QLineEdit()
+        self._slices_3 = QLineEdit()
+
+        # Run buttons
+        self._create_z_projections = QPushButton('Create Z-Projections')
+        self._create_z_projections.setEnabled(False)
+        self._merge_stacks = QPushButton("Merge Stacks")
+        self._merge_stacks.setEnabled(False)
+
+        ### Set layout ##
+        self._set_grid_layout()     
+
+        # Connect to own callbacks or changes
+        # Connect the viewer layer change event to update the combo box
+        self.viewer.layers.events.inserted.connect(self._update_input_options)
+        self.viewer.layers.events.removed.connect(self._update_input_options)
+        self._create_z_projections.clicked.connect(self._on_click)  
+        self._merge_stacks.clicked.connect(self._on_click) 
+
+
+    def _update_input_options(self):
+        """Update the combo box with the current image layers."""
+        self._input_layer.clear()
+        image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, napari.layers.Image)]
+        self._input_layer.addItems(image_layers)
+
+
+    def _set_grid_layout(self):
+        """Create layout"""
+        # Create layout and define default settings
+        grid_layout = QGridLayout()
+
+        # Add input
+        grid_layout.addWidget(QLabel("<b>Input</b>"), 0, 0)
+        grid_layout.addWidget(self._input_layer, 0, 1, 1, 3)
+
+        # # Create 1. column, stack and color names
+        grid_layout.addWidget(QLabel(""), 1, 0)
+        grid_layout.addWidget(QLabel("<b>Stack 1 (R)</b>"), 2, 0)
+        grid_layout.addWidget(QLabel("<b>Stack 2 (G)</b>"), 3, 0)
+        grid_layout.addWidget(QLabel("<b>Stack 3 (B)</b>"), 4, 0)
+
+        # # Create 2. column, shift by
+        grid_layout.addWidget(QLabel("<b>Shift by</b>"), 1, 1)
+        grid_layout.addWidget(self._shift_1, 2, 1)
+        grid_layout.addWidget(self._shift_2, 3, 1)
+        grid_layout.addWidget(self._shift_3, 4, 1)
+
+        # Create 3. column, projection type
+        grid_layout.addWidget(QLabel("<b>Projection Type</b>"), 1, 2)
+        grid_layout.addWidget(self._projection_types_1, 2, 2)
+        grid_layout.addWidget(self._projection_types_2, 3, 2)
+        grid_layout.addWidget(self._projection_types_3, 4, 2)
+
+        # # Create 4. column, slice number
+        grid_layout.addWidget(QLabel("<b>Slices</b>"), 1, 3)
+        grid_layout.addWidget(self._slices_1, 2, 3)
+        grid_layout.addWidget(self._slices_2, 3, 3)
+        grid_layout.addWidget(self._slices_3, 4, 3)
+
+        # Create Z-Projection button
+        grid_layout.addWidget(self._create_z_projections, 5, 1, 1, 3)
+
+        # Create Composite button
+        grid_layout.addWidget(self._merge_stacks, 6, 1, 1, 3)
+        
+        # Putting everything together
+        grid_layout.setAlignment(Qt.AlignTop)
+        self.setLayout(grid_layout)
+        return
+
 
     def _on_click(self):
-        print("napari has", len(self.viewer.layers), "layers")
+        show_info("napari has", len(self.viewer.layers), "layers")
+

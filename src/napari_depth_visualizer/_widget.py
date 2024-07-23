@@ -38,575 +38,12 @@ from skimage.color import rgb2gray
 import numpy as np
 from napari.utils.notifications import show_info
 import math
-from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QComboBox, QLineEdit, QGridLayout, QSpinBox
+from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QComboBox, QLineEdit, QGridLayout, QSpinBox, QSlider
 from PyQt5.QtCore import Qt
 import napari
-# if TYPE_CHECKING:
-#     import napari
+from superqt import QLabeledDoubleRangeSlider
 
-
-@magic_factory(
-    call_button="Create Composite"
-)
-def threshold_magic_widget(
-    # TODO set default
-    Red: "napari.layers.Image",
-    Green: "napari.layers.Image",
-    Blue: "napari.layers.Image",
-) -> "napari.types.ImageData":
-    #TODO allow using only two colors
-
-    red_img = Red.data
-    green_img = Green.data
-    blue_img = Blue.data
-
-    # # TODO disable again after testing
-    # red_img = rgb2gray(red_img)
-    # green_img = rgb2gray(green_img)
-    # blue_img = rgb2gray(blue_img)
-
-    # # TODO enable again after testing
-    # # Only allow 2D (YX) or 3D (TXY) input
-    images = [red_img, green_img, blue_img]
-    # for img in images:
-    #     if len(img.shape) not in [2, 3]:
-    #         show_info("Inputs for merging have to be 2D or 3D.")
-    #         return
-
-    # if 2D reshape to 3D with t=1
-
-    if not red_img.dtype == green_img.dtype == blue_img.dtype:
-        show_info("The source images must have the same bit depth")
-        return
-    
-    rgb_composite = np.stack((red_img, green_img, blue_img), axis=3)
-    # return img_as_float(rgb_composite)
-    return rgb_composite # .astype()
-
-
-# if we want even more control over our widget, we can use
-# magicgui `Container`
-class ZProjection(Container):
-    def __init__(self, viewer: "napari.viewer.Viewer"):
-        super().__init__()
-        self._viewer = viewer
-        # use create_widget to generate widgets from type annotations
-        self._image_input_layer = create_widget(
-            label="Input Image", annotation="napari.layers.Image"
-        )
-        self._slice_numbers = create_widget(
-            label="Slices", annotation=str, value="1, 2, 3"
-        )
-        self._image_output_name = create_widget(
-            label="Output Name", annotation=str, value="z-projection result"
-        )
-        self._projection_type = create_widget(
-            label="Projection Type", 
-            options={"choices": ['Average Intensity', 'Min Intensity', 'Max Intensity', 'Sum Slices', 'Standard Deviation', 'Median']}
-        )
-        # self._threshold_slider = create_widget(
-        #     label="Threshold", annotation=float, widget_type="FloatSlider"
-        # )
-        # self._threshold_slider.min = 0
-        # self._threshold_slider.max = 1
-        # # use magicgui widgets directly
-        # self._invert_checkbox = CheckBox(text="Keep pixels below threshold")
-
-        self._start_processing = create_widget(
-            label="Process", widget_type="PushButton"
-        )
-
-        # connect your own callbacks
-        # self._threshold_slider.changed.connect(self._threshold_im)
-        # self._invert_checkbox.changed.connect(self._threshold_im)
-        self._start_processing.clicked.connect(self._project_in_z_plane)
-
-
-        # append into/extend the container with your widgets
-        self.extend(
-            [
-                self._label,
-                self._image_input_layer,
-                self._slice_numbers,
-                self._image_output_name,
-                self._projection_type,
-                # self._threshold_slider,
-                # self._invert_checkbox,
-                self._start_processing 
-            ]
-        )
-
-    
-    def _project_in_z_plane(self):
-
-        # TODO: check that input is valid
-
-        image_layer = self._image_input_layer.value
-        image = image_layer.data # img_as_float(image_layer.data)
-        
-        if image_layer is None:
-            return 
-        if len(image.shape) != 4:
-            show_info("Image must be 4D with dimensions TZYX")
-            return
-                
-        if self._is_slice_input_valid() is False:
-            show_info("Slice input is not valid.")
-            return
-
-        if self._projection_type.value == "Average Intensity":
-            output = self._average_intensity()
-        elif self._projection_type.value == 'Min Intensity':
-            output = self._min_intensity()
-        elif self._projection_type.value == 'Max Intensity':
-            output = self._max_intensity()
-        # elif Projection_Type == 'Sum Slices':
-        #     output = _sum_slices(Input, Slices)
-        # elif Projection_Type == 'Standard Deviastion':
-        #     output = _standard_deviation(Input, Slices)
-        elif self._projection_type.value == 'Median':
-            output = self._median_intensity()
-    
-        else:
-            show_info("Projection Type not valid.")
-            return
-
-        if self._image_output_name.value == '':
-            name = image_layer.name + "_zprojection"
-        else:
-            name = self._image_output_name.value
-        
-        # output in range [0, 255]
-        output = (output * 255 / np.max(output)).astype('uint8')
-        self._viewer.add_image(output, name=name) 
-                       
-        return
-    
-
-    def _is_slice_input_valid(self):
-        """
-        1. if it contains any characters except for int numbers, ",", " " or ":" it is not a valid input
-        2. if it exceeds number of planes
-        3. ,, empty or completely empty
-        4. input like ,:, or ::
-        5. Overlapping planes
-        """
-        image_input = self._image_input_layer.value.data
-        slice_numbers = self._slice_numbers.value
-
-        # Image dimensions
-        t, z, y, x = image_input.shape
-
-        acceptable_chars = set("0123456789:, ")
-        if set(slice_numbers).issubset(acceptable_chars) is False:
-            return False
-        
-        # Check single substring
-        slice_num = slice_numbers.replace(" ", "") # remove all whitespace
-        slice_num_parts = slice_num.split(sep=',') # separate by commas
-                      
-        for substring in slice_num_parts:  
-        #     if len(substring) not in [1, 3, 5]: #Check length of substrings
-        #         return False
-
-            # Check slice inputs, start:stop or start:stop:step
-            if ":" in substring:                
-                parts = substring.split(':')
-
-                try:
-                    # Convert parts to integers
-                    start = int(parts[0])
-                    stop = int(parts[1])
-                    step = int(parts[2]) if len(parts) == 3 else 1
-                    
-                    # Validate values for slice
-                    if start < 0 or stop < 0 or (len(parts) == 3 and step == 0):
-                        return False
-                    
-                    if start >= stop:
-                        return False
-                    
-                    # Check if exceeds image dimension in z-plane
-                    if start >= z or stop > z:
-                        return False
-
-                except ValueError:
-                    # If conversion to int fails
-                    return False
-            else:
-                try:
-                    # Convert index to integer
-                    index = int(substring)
-                    if index < 0 or index >= z:
-                        return False
-                except ValueError:
-                    # If conversion to int fails
-                    return False
-
-        return True
-
-
-    def _concat_slices(self):
-        """
-        Given image input has dimensions TZYX and slice_numbers as string e.g. "1, 2, 5:10:2"
-        Returns concatenated slices TNYX with N being the number of slices the user inputs
-        """
-        image_input = self._image_input_layer.value.data
-        slice_numbers = self._slice_numbers.value
-        # Get image dimensions
-        t, z, y, x = image_input.shape
-        
-        slice_num = slice_numbers.replace(" ", "") # remove all whitespace
-        slice_num_parts = slice_num.split(sep=',') # separate by commas
-
-        indices = []
-        for substring in slice_num_parts:
-            if ":" in substring:
-                parts = list(map(int, substring.split(':')))
-                idx = slice(*parts)
-            else:
-                idx = int(substring)
-            indices.append(idx)
-
-        slices = [image_input[:, idx].reshape(t, -1, y, x) for idx in indices]
-        slices_concat = np.concatenate(slices, axis=1)
-        return slices_concat
-
-
-    def _average_intensity(self):
-        """
-        Given that input has dimensions TZYX, averages stack of slices along Z-axis
-        Outputs image of dimension TYX
-        """
-        composite = np.mean(self._concat_slices(), axis=1)
-        return composite
-        
-
-    def _max_intensity(self):
-        """
-        Given that input has dimensions TZYX, compute max intensity projection along Z-axis
-        Outputs image of dimension TYX
-        Max intensity projection of stack
-        """
-        composite = np.max(self._concat_slices(), axis=1)
-        return composite 
-    
-
-    def _min_intensity(self):
-        """
-        Given that input has dimensions TZYX, compute min intensity projection along Z-axis
-        Outputs image of dimension TYX
-        """
-        composite = np.min(self._concat_slices(), axis=1)
-        return composite 
-    
-
-    def _median_intensity(self):
-        """
-        Given that input has dimensions TZYX, compute median intensity projection along Z-axis
-        Outputs image of dimension TYX
-        """
-        composite = np.median(self._concat_slices(), axis=1)
-        return composite 
-
-# -------------------------------------------------------------------------------------------------------------------------------------------------
-class Alternative(Container):
-    def __init__(self, viewer: "napari.viewer.Viewer"):
-        super().__init__()
-        self._viewer = viewer
-        # use create_widget to generate widgets from type annotations
-        projection_types = {"choices": ['Average Intensity', 'Min Intensity', 'Max Intensity', 'Sum Slices', 'Standard Deviation', 'Median']}
-        
-        # Red
-        self._red_label = create_widget(widget_type="Label", label="<b>Red</b>")
-        self._red_image_input_layer = create_widget(
-            label="Input Image", annotation="napari.layers.Image"
-        )
-        self._red_projection_type = create_widget(
-            label="Projection Type", 
-            options=projection_types
-        )
-        self._red_slices = create_widget(
-            label="Slices", annotation=str
-        )
-        # Green
-        self._green_label = create_widget(widget_type="Label", label="<b>Green</b>")
-        self._green_image_input_layer = create_widget(
-            label="Input Image", annotation="napari.layers.Image"
-        )
-        self._green_projection_type = create_widget(
-            label="Projection Type", 
-            options=projection_types
-        )
-        self._green_slices = create_widget(
-            label="Slices", annotation=str
-        )
-        # Blue
-        self._blue_label = create_widget(widget_type="Label", label="<b>Blue</b>")
-        self._blue_image_input_layer = create_widget(
-            label="Input Image", annotation="napari.layers.Image"
-        )
-        self._blue_projection_type = create_widget(
-            label="Projection Type", 
-            options=projection_types
-        )
-        self._blue_slices = create_widget(
-            label="Slices", annotation=str
-        )
-        # Output
-        self._image_output_name = create_widget(
-            label="Output Name", annotation=str, value="Z-projection result"
-        )
-        self._invert_checkbox = CheckBox(text="Set default slice numbers")
-
-        self._start_processing = create_widget(
-            label="Create Composite", widget_type="PushButton"
-        )
-
-        # # connect your own callbacks
-        # print("Red slices ", self._red_slices)
-        # # If slice numbers empty, set default slice numbers, otherwise check if input is valid
-        # # if self._red_slices.value=="" and self._green_slices.value=="" and self._blue_slices.value=="":
-        # #     print("Set default slices")
-        # #     self._start_processing.clicked.connect(self._set_default_slice_numbers)
-
-        # Set default slice numbers
-        self._invert_checkbox.changed.connect(self._set_default_slice_numbers)
-        self._start_processing.clicked.connect(self._zproject_and_merge)
-
-        # append into/extend the container with your widgets
-        self.extend(
-            [
-                self._red_label,
-                self._red_image_input_layer,
-                self._red_projection_type,
-                self._red_slices,
-                self._green_label,
-                self._green_image_input_layer,
-                self._green_projection_type,
-                self._green_slices,
-                self._blue_label,
-                self._blue_image_input_layer,
-                self._blue_projection_type,
-                self._blue_slices,
-                self._image_output_name,
-                self._invert_checkbox,
-                self._start_processing 
-            ]
-        )
-
-
-    def _compute_default_slice_numbers(self):
-        
-        if self._red_image_input_layer.value is None:
-            slices_default = ["", "", ""]
-            return slices_default
-
-        image_input = self._red_image_input_layer.value.data        
-        t, z, y, x = image_input.shape
-
-        # Default rounds down
-        central_slice = math.floor(z/2)
-        upper_slices = "0:" +str(central_slice)
-        lower_slices = str(central_slice+1) + ":" + str(z)
-
-        return [upper_slices, str(central_slice), lower_slices]
-
-
-    def _set_default_slice_numbers(self):
-        slices_default = self._compute_default_slice_numbers()
-        self._red_slices.value = slices_default[0]
-        self._green_slices.value = slices_default[1]
-        self._blue_slices.value = slices_default[2]
-        return
-
-
-    def _zproject_and_merge(self):
-        
-        # z-Projection
-        red_projected = self._project_in_z_plane(self._red_slices.value)
-        green_projected = self._project_in_z_plane(self._green_slices.value)
-        blue_projected = self._project_in_z_plane(self._blue_slices.value)
-
-        # self._viewer.add_image(red_projected) 
-        # self._viewer.add_image(green_projected) 
-        # self._viewer.add_image(blue_projected) 
-        rgb_composite = np.stack((red_projected, green_projected, blue_projected), axis=3)
-        self._viewer.add_image(rgb_composite) 
-        return
-        # return rgb_composite
-    
-
-    def _project_in_z_plane(self, slice_numbers):
-
-        # TODO: check that input is valid
-        image_layer = self._red_image_input_layer.value
-        image = image_layer.data # img_as_float(image_layer.data)
-        
-        if image_layer is None:
-            return 
-        if len(image.shape) != 4:
-            show_info("Image must be 4D with dimensions TZYX")
-            return
-
-        if self._is_slice_input_valid(slice_numbers) is False:
-            show_info("Slice input is not valid.")
-            return
-
-        if self._red_projection_type.value == "Average Intensity":
-            output = self._average_intensity(slice_numbers)
-        elif self._red_projection_type.value == "Min Intensity":
-            output = self._min_intensity(slice_numbers)
-        elif self._red_projection_type.value == "Max Intensity":
-            output = self._max_intensity(slice_numbers)
-        # elif Projection_Type == "Sum Slices":
-        #     output = _sum_slices(Input, Slices)
-        # elif Projection_Type == "Standard Deviastion":
-        #     output = _standard_deviation(Input, Slices)
-        elif self._red_projection_type.value == "Median":
-            output = self._median_intensity(slice_numbers)
-        else:
-            show_info("Projection Type not valid.")
-            return
-
-        # if self._image_output_name.value == '':
-        #     name = image_layer.name + "_zprojection"
-        # else:
-        #     name = self._image_output_name.value
-        
-        # output in range [0, 255]
-        output = (output * 255 / np.max(output)).astype('uint8')
-        # self._viewer.add_image(output, name=name) 
-                       
-        return output
-    
-
-    def _is_slice_input_valid(self, slice_numbers):
-        """
-        1. if it contains any characters except for int numbers, ",", " " or ":" it is not a valid input
-        2. if it exceeds number of planes
-        3. ,, empty or completely empty
-        4. input like ,:, or ::
-        5. Overlapping planes
-        """
-        image_input = self._red_image_input_layer.value.data
-
-        # Image dimensions
-        t, z, y, x = image_input.shape
-
-        acceptable_chars = set("0123456789:, ")
-        if set(slice_numbers).issubset(acceptable_chars) is False:
-            return False
-        
-        # Check single substring
-        slice_num = slice_numbers.replace(" ", "") # remove all whitespace
-        slice_num_parts = slice_num.split(sep=',') # separate by commas
-                      
-        for substring in slice_num_parts:  
-        #     if len(substring) not in [1, 3, 5]: #Check length of substrings
-        #         return False
-
-            # Check slice inputs, start:stop or start:stop:step
-            if ":" in substring:                
-                parts = substring.split(':')
-
-                try:
-                    # Convert parts to integers
-                    start = int(parts[0])
-                    stop = int(parts[1])
-                    step = int(parts[2]) if len(parts) == 3 else 1
-                    
-                    # Validate values for slice
-                    if start < 0 or stop < 0 or (len(parts) == 3 and step == 0):
-                        return False
-                    
-                    if start >= stop:
-                        return False
-                    
-                    # Check if exceeds image dimension in z-plane
-                    if start >= z or stop > z:
-                        return False
-
-                except ValueError:
-                    # If conversion to int fails
-                    return False
-            else:
-                try:
-                    # Convert index to integer
-                    index = int(substring)
-                    if index < 0 or index >= z:
-                        return False
-                except ValueError:
-                    # If conversion to int fails
-                    return False
-
-        return True
-
-
-    def _concat_slices(self, slice_numbers):
-        """
-        Given image input has dimensions TZYX and slice_numbers as string e.g. "1, 2, 5:10:2"
-        Returns concatenated slices TNYX with N being the number of slices the user inputs
-        """
-        image_input = self._red_image_input_layer.value.data
-
-        # Get image dimensions
-        t, z, y, x = image_input.shape
-        
-        slice_num = slice_numbers.replace(" ", "") # remove all whitespace
-        slice_num_parts = slice_num.split(sep=',') # separate by commas
-
-        indices = []
-        for substring in slice_num_parts:
-            if ":" in substring:
-                parts = list(map(int, substring.split(':')))
-                idx = slice(*parts)
-            else:
-                idx = int(substring)
-            indices.append(idx)
-
-        slices = [image_input[:, idx].reshape(t, -1, y, x) for idx in indices]
-        slices_concat = np.concatenate(slices, axis=1)
-        return slices_concat
-
-
-    def _average_intensity(self, slice_numbers):
-        """
-        Given that input has dimensions TZYX, averages stack of slices along Z-axis
-        Outputs image of dimension TYX
-        """
-        composite = np.mean(self._concat_slices(slice_numbers), axis=1)
-        return composite
-        
-
-    def _max_intensity(self, slice_numbers):
-        """
-        Given that input has dimensions TZYX, compute max intensity projection along Z-axis
-        Outputs image of dimension TYX
-        Max intensity projection of stack
-        """
-        composite = np.max(self._concat_slices(slice_numbers), axis=1)
-        return composite 
-    
-
-    def _min_intensity(self, slice_numbers):
-        """
-        Given that input has dimensions TZYX, compute min intensity projection along Z-axis
-        Outputs image of dimension TYX
-        """
-        composite = np.min(self._concat_slices(slice_numbers), axis=1)
-        return composite 
-    
-
-    def _median_intensity(self, slice_numbers):
-        """
-        Given that input has dimensions TZYX, compute median intensity projection along Z-axis
-        Outputs image of dimension TYX
-        """
-        composite = np.median(self._concat_slices(slice_numbers), axis=1)
-        return composite 
-
-
+#----------------------------------------------------------------------------------------------------
 class ExampleQWidget(QWidget):
     def __init__(self, napari_viewer):
         super().__init__()
@@ -643,11 +80,15 @@ class ExampleQWidget(QWidget):
         self._slices_3 = QLineEdit()
 
         # Run buttons
-        self._create_z_projections = QPushButton('Create Z-Projections')
-        self._create_z_projections.setEnabled(False)
-        self._merge_stacks = QPushButton("Merge Stacks")
-        self._merge_stacks.setEnabled(False)
+        self._btn_create_z_projections = QPushButton('Show Z-Projections')
+        # self._btn_create_z_projections.setEnabled(False)
+        self._btn_merge_stacks = QPushButton("Project && Merge Stacks")
+        #self._btn_merge_stacks.setEnabled(False)
 
+        # Slider
+        self.sld = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)# QSlider(Qt.Orientation.Horizontal)
+        self.sld.setTickPosition(3)
+        
         ### Set layout ##
         self._set_grid_layout()     
 
@@ -655,15 +96,45 @@ class ExampleQWidget(QWidget):
         # Connect the viewer layer change event to update the combo box
         self.viewer.layers.events.inserted.connect(self._update_input_options)
         self.viewer.layers.events.removed.connect(self._update_input_options)
-        self._create_z_projections.clicked.connect(self._on_click)  
-        self._merge_stacks.clicked.connect(self._on_click) 
+
+        # Connect the QLineEdit text change to a handler method
+        self._slices_1.textChanged.connect(self.on_text_change)
+        self._slices_2.textChanged.connect(self.on_text_change)
+        self._slices_3.textChanged.connect(self.on_text_change)
+
+        self._btn_create_z_projections.clicked.connect(self._show_z_projections)  
+        self._btn_merge_stacks.clicked.connect(self._project_then_merge_stacks) 
+        
+        # Slider
+        self.sld.rangeChanged.connect(lambda *a: print(f"new range: {a}"))
+
+
+    def on_text_change(self):
+        slices_all = [self._slices_1, self._slices_2, self._slices_3]
+        for stack in range(3):
+            entered_text = slices_all[stack].text()
+            slices_all[stack].setText(entered_text)
+
+
+    # def _enable_zprojection(self):
+    #     """Disable or enable Z-Projection button"""
+    #     slice_input_all = [self._slices_1, self._slices_2, self._slices_3]
+    #     for stack in range(3):
+    #         if self._is_slice_input_valid(slice_input_all[stack]) is True:
+    #             self._btn_create_z_projections.setEnabled(True)
+    #         else:
+    #             show_info("Slice input is not valid for Stack {}." .format(str(stack)))
 
 
     def _update_input_options(self):
         """Update the combo box with the current image layers."""
         self._input_layer.clear()
-        image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, napari.layers.Image)]
-        self._input_layer.addItems(image_layers)
+        # image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, napari.layers.Image)]
+        # self._input_layer.addItems(image_layers)
+
+        for layer in self.viewer.layers:
+            if isinstance(layer, napari.layers.Image):
+                self._input_layer.addItem(layer.name, layer)
 
 
     def _set_grid_layout(self):
@@ -681,29 +152,32 @@ class ExampleQWidget(QWidget):
         grid_layout.addWidget(QLabel("<b>Stack 2 (G)</b>"), 3, 0)
         grid_layout.addWidget(QLabel("<b>Stack 3 (B)</b>"), 4, 0)
 
-        # # Create 2. column, shift by
+        # # Create 2. column "Shift by"
         grid_layout.addWidget(QLabel("<b>Shift by</b>"), 1, 1)
         grid_layout.addWidget(self._shift_1, 2, 1)
         grid_layout.addWidget(self._shift_2, 3, 1)
         grid_layout.addWidget(self._shift_3, 4, 1)
 
-        # Create 3. column, projection type
+        # Create 3. column "Projection Type"
         grid_layout.addWidget(QLabel("<b>Projection Type</b>"), 1, 2)
         grid_layout.addWidget(self._projection_types_1, 2, 2)
         grid_layout.addWidget(self._projection_types_2, 3, 2)
         grid_layout.addWidget(self._projection_types_3, 4, 2)
 
-        # # Create 4. column, slice number
+        # # Create 4. column "Slices"
         grid_layout.addWidget(QLabel("<b>Slices</b>"), 1, 3)
         grid_layout.addWidget(self._slices_1, 2, 3)
         grid_layout.addWidget(self._slices_2, 3, 3)
         grid_layout.addWidget(self._slices_3, 4, 3)
 
         # Create Z-Projection button
-        grid_layout.addWidget(self._create_z_projections, 5, 1, 1, 3)
+        grid_layout.addWidget(self._btn_create_z_projections, 5, 1, 1, 3)
 
         # Create Composite button
-        grid_layout.addWidget(self._merge_stacks, 6, 1, 1, 3)
+        grid_layout.addWidget(self._btn_merge_stacks, 6, 1, 1, 3)
+
+        ## Slider test
+        # grid_layout.addWidget(self.sld, 7, 1, 1, 3)
         
         # Putting everything together
         grid_layout.setAlignment(Qt.AlignTop)
@@ -711,6 +185,327 @@ class ExampleQWidget(QWidget):
         return
 
 
+    def _compute_z_projection(self):
+        """Computes z-projections for all 3 stacks; output is None for stacks where slice input is invalid"""
+        # TODO: check that input is valid; if slice number > z
+        image_layer = self._input_layer.currentData()
+        image = image_layer.data # img_as_float(image_layer.data)
+        
+        if image_layer is None:
+            show_info("No input image.") 
+            return None
+        if len(image.shape) != 4:
+            show_info("Image must be 4D with dimensions TZYX")
+            return None
+
+        proj_types_all = [self._projection_types_1, self._projection_types_2, self._projection_types_3]
+        slice_input_all = [self._slices_1.text(), self._slices_2.text(), self._slices_3.text()]
+        outputs = []
+
+        for stack in range(3):    
+            if proj_types_all[stack].currentText() == "Raw":
+                img_projected = self._input_layer.currentData().data
+            elif self._is_slice_input_valid(slice_input_all[stack]) is False:
+                img_projected = None
+            else:
+                if proj_types_all[stack].currentText() == "Average Intensity":
+                    img_projected = self._average_intensity(slice_input_all[stack])
+                elif proj_types_all[stack].currentText() == "Min Intensity":
+                    img_projected = self._min_intensity(slice_input_all[stack])
+                elif proj_types_all[stack].currentText() == "Max Intensity":
+                    img_projected = self._max_intensity(slice_input_all[stack])
+                # elif Projection_Type == "Sum Slices":
+                #     output = _sum_slices(Input, Slices)
+                # elif Projection_Type == "Standard Deviation":
+                #     output = _standard_deviation(Input, Slices)
+                elif proj_types_all[stack].currentText() == "Median":
+                    img_projected = self._median_intensity(slice_input_all[stack])
+                else:
+                    img_projected = None
+            outputs.append(img_projected)
+                       
+        return outputs
+    
+
+    def _show_z_projections(self):
+        """Add projected images as image layers to viewer"""
+        image_layer = self._input_layer.currentData()
+        img_projected = self._compute_z_projection()
+        
+        for stack, img in enumerate(img_projected):
+            name = image_layer.name + "_zproj_stack" + str(stack+1)
+            self.viewer.add_image(img, name=name) 
+
+        # # TODO: check that input is valid; if slice number > z
+        # image_layer = self._input_layer.currentData()
+        # image = image_layer.data # img_as_float(image_layer.data)
+        
+        # if image_layer is None:
+        #     return 
+        # if len(image.shape) != 4:
+        #     show_info("Image must be 4D with dimensions TZYX")
+        #     return
+
+        # proj_types_all = [self._projection_types_1, self._projection_types_2, self._projection_types_3]
+        # slice_input_all = [self._slices_1.text(), self._slices_2.text(), self._slices_3.text()]
+
+        # for stack in range(3):    
+        #     if proj_types_all[stack].currentText() == "Raw":
+        #         output = self._input_layer.currentData().data
+        #         name = image_layer.name + "_zprojection_stack" + str(stack+1)
+        #         # output = (output * 255 / np.max(output)).astype('uint8')
+        #         self.viewer.add_image(output, name=name) 
+            
+        #     elif self._is_slice_input_valid(slice_input_all[stack]) is False:
+        #         show_info("Slice input is not valid for stack {}." .format(str(stack+1)))
+        #     else:
+        #         if proj_types_all[stack].currentText() == "Average Intensity":
+        #             output = self._average_intensity(slice_input_all[stack])
+        #         elif proj_types_all[stack].currentText() == 'Min Intensity':
+        #             output = self._min_intensity(slice_input_all[stack])
+        #         elif proj_types_all[stack].currentText() == 'Max Intensity':
+        #             output = self._max_intensity(slice_input_all[stack])
+        #         # elif Projection_Type == 'Sum Slices':
+        #         #     output = _sum_slices(Input, Slices)
+        #         # elif Projection_Type == 'Standard Deviastion':
+        #         #     output = _standard_deviation(Input, Slices)
+        #         elif proj_types_all[stack].currentText() == 'Median':
+        #             output = self._median_intensity(slice_input_all[stack])
+        #         else:
+        #             show_info("Projection type not valid for stack {}." .format(str(stack+1)))
+        #             return
+
+        #         name = image_layer.name + "_zproj_stack" + str(stack+1)
+        #         # output = (output * 255 / np.max(output)).astype('uint8')
+        #         self.viewer.add_image(output, name=name) 
+                       
+        # return
+    
+
+    # def _concat_slices(self, slice_numbers):
+    #     """
+    #     Given image input has dimensions TZYX and slice_numbers as string e.g. "1, 2, 5:10:2"
+    #     Returns concatenated slices TNYX with N being the number of slices the user inputs
+    #     """
+    #     image_input = self._input_layer.currentData().data
+
+    #     # Get image dimensions
+    #     t, z, y, x = image_input.shape
+        
+    #     slice_num = slice_numbers.replace(" ", "") # remove all whitespace
+    #     slice_num_parts = slice_num.split(sep=',') # separate by commas
+
+    #     indices = []
+    #     for substring in slice_num_parts:
+    #         if ":" in substring:
+    #             parts = list(map(int, substring.split(':')))
+    #             idx = slice(*parts)
+    #         else:
+    #             idx = int(substring)
+    #         indices.append(idx)
+
+    #     slices = [image_input[:, idx].reshape(t, -1, y, x) for idx in indices]
+    #     slices_concat = np.concatenate(slices, axis=1)
+    #     return slices_concat
+
+
+    def _average_intensity(self, slice_num):
+        """
+        Given that input has dimensions TZYX, averages stack of slice_num planes along Z-axis
+        Outputs image of dimension TZYX
+        """
+        image_input = self._input_layer.currentData().data
+        slice_num = int(slice_num)
+        t, z, y, x = image_input.shape # Image dimensions
+        
+        image_projected = np.zeros(image_input.shape)
+
+        for i in range(z):
+            if i - slice_num < 0:
+                image_projected[:, i] = np.mean(image_input[:, 0:i+slice_num], axis=1)
+            elif i + slice_num >= z:
+                image_projected[:, i] = np.mean(image_input[:, i:z], axis=1)
+            else:
+                image_projected[:, i] = np.mean(image_input[:, i-slice_num:i+slice_num], axis=1)
+
+        return image_projected
+        
+
+    def _max_intensity(self, slice_num):
+        """
+        Given that input has dimensions TZYX, compute max intensity projection along Z-axis
+        Outputs image of dimension TYX
+        Max intensity projection of stack
+        """       
+        image_input = self._input_layer.currentData().data
+        slice_num = int(slice_num)
+        t, z, y, x = image_input.shape # Image dimensions
+        image_projected = np.zeros(image_input.shape)
+
+        for i in range(z):
+            if i - slice_num < 0:
+                image_projected[:, i] = np.max(image_input[:, 0:i+slice_num], axis=1)
+            elif i + slice_num >= z:
+                image_projected[:, i] = np.max(image_input[:, i:z], axis=1)
+            else:
+                image_projected[:, i] = np.max(image_input[:, i-slice_num:i+slice_num], axis=1)
+
+        return image_projected
+    
+
+    def _min_intensity(self, slice_num):
+        """
+        Given that input has dimensions TZYX, compute min intensity projection along Z-axis
+        Outputs image of dimension TYX
+        """
+        image_input = self._input_layer.currentData().data
+        slice_num = int(slice_num)
+        t, z, y, x = image_input.shape # Image dimensions
+        image_projected = np.zeros(image_input.shape)
+
+        for i in range(z):
+            if i - slice_num < 0:
+                image_projected[:, i] = np.min(image_input[:, 0:i+slice_num], axis=1)
+            elif i + slice_num >= z:
+                image_projected[:, i] = np.min(image_input[:, i:z], axis=1)
+            else:
+                image_projected[:, i] = np.min(image_input[:, i-slice_num:i+slice_num], axis=1)
+
+        return image_projected
+    
+
+    def _median_intensity(self, slice_num):
+        """
+        Given that input has dimensions TZYX, compute median intensity projection along Z-axis
+        Outputs image of dimension TYX
+        """
+        image_input = self._input_layer.currentData().data
+        slice_num = int(slice_num)
+        t, z, y, x = image_input.shape # Image dimensions
+        image_projected = np.zeros(image_input.shape)
+
+        for i in range(z):
+            if i - slice_num < 0:
+                image_projected[:, i] = np.median(image_input[:, 0:i+slice_num], axis=1)
+            elif i + slice_num >= z:
+                image_projected[:, i] = np.median(image_input[:, i:z], axis=1)
+            else:
+                image_projected[:, i] = np.median(image_input[:, i-slice_num:i+slice_num], axis=1)
+
+        return image_projected
+
+
+    def _project_then_merge_stacks(self):
+        # TODO: check inputs
+        # TODO: possibility to merge only 2 stacks?
+        images_projected = self._compute_z_projection()
+        # Normalize; RGB range [0, 255]
+        images_projected_normed = [(img / np.max(img) * 255).astype('uint8') for img in images_projected]         
+        
+        image_input = self._input_layer.currentData().data
+        t, z, y, x = image_input.shape 
+        result = np.zeros((t, z, y, x, 3))
+
+        # Shifted 
+        idx_shifts = [self._shift_1.text(), self._shift_2.text(), self._shift_3.text()]
+        
+        for stack in range(3):
+            if int(idx_shifts[stack]) < 0:
+                idx = -int(idx_shifts[stack])
+                result[:, :z-idx, :, :, stack] = images_projected_normed[stack][:, idx:]
+                result[:, z-idx:, :, :, stack] = np.zeros((t, idx, y, x))
+            elif int(idx_shifts[stack]) == 0:
+                result[:, :, :, :, stack] = images_projected_normed[stack]
+            else:
+                idx = int(idx_shifts[stack])
+                result[:, :idx, :, :, stack] = np.zeros((t, idx, y, x))
+                result[:, idx:, :, :, stack] = images_projected_normed[stack][:, :z-idx]
+
+        self.viewer.add_image(result.astype("uint8")) 
+        return
+
+
     def _on_click(self):
         show_info("napari has", len(self.viewer.layers), "layers")
 
+
+    def _is_slice_input_valid(self, slices):
+        # TODO: if slice number > z
+        
+        """
+        1. if it contains any characters except for int numbers, ",", " " or ":" it is not a valid input
+        2. if it exceeds number of planes
+        3. ,, empty or completely empty
+        4. input like ,:, or ::
+        5. Overlapping planes
+        """
+        image_input = self._input_layer.currentData().data
+        slice_numbers = slices # .text()
+
+        # Image dimensions
+        t, z, y, x = image_input.shape
+
+        acceptable_chars = set("0123456789:, ")
+        if set(slice_numbers).issubset(acceptable_chars) is False:
+            return False
+        
+        # Check single substring
+        slice_num = slice_numbers.replace(" ", "") # remove all whitespace
+        slice_num_parts = slice_num.split(sep=',') # separate by commas
+                        
+        for substring in slice_num_parts:  
+        #     if len(substring) not in [1, 3, 5]: #Check length of substrings
+        #         return False
+
+            # Check slice inputs, start:stop or start:stop:step
+            if ":" in substring:                
+                parts = substring.split(':')
+
+                try:
+                    # Convert parts to integers
+                    start = int(parts[0])
+                    stop = int(parts[1])
+                    step = int(parts[2]) if len(parts) == 3 else 1
+                    
+                    # Validate values for slice
+                    if start < 0 or stop < 0 or (len(parts) == 3 and step == 0):
+                        return False
+                    
+                    if start >= stop:
+                        return False
+                    
+                    # Check if exceeds image dimension in z-plane
+                    if start >= z or stop > z:
+                        return False
+
+                except ValueError:
+                    # If conversion to int fails
+                    return False
+            else:
+                try:
+                    # Convert index to integer
+                    index = int(substring)
+                    if index < 0 or index >= z:
+                        return False
+                except ValueError:
+                    # If conversion to int fails
+                    return False
+
+        return True
+
+
+# class ExampleQWidget(QWidget):
+#     # your QWidget.__init__ can optionally request the napari viewer instance
+#     # use a type annotation of 'napari.viewer.Viewer' for any parameter
+#     def __init__(self, viewer: "napari.viewer.Viewer"):
+#         super().__init__()
+#         self.viewer = viewer
+
+#         btn = QPushButton("Click me!")
+#         btn.clicked.connect(self._on_click)
+
+#         self.setLayout(QHBoxLayout())
+#         self.layout().addWidget(btn)
+
+#     def _on_click(self):
+#         print("napari has", len(self.viewer.layers), "layers")

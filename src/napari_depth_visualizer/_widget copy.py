@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
 from magicgui.widgets import CheckBox, Container, create_widget
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget
+from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSlider
 from skimage.util import img_as_float
 from skimage.color import rgb2gray
 import numpy as np
