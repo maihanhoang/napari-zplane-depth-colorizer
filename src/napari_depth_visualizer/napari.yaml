@@ -1,5 +1,5 @@
 name: napari-depth-visualizer
-display_name: Color z-planes
+display_name: napari-color-visualizer
 # use 'hidden' to remove plugin from napari hub search results
 visibility: public
 # see https://napari.org/stable/plugins/manifest.html for valid categories
@@ -15,18 +15,9 @@ contributions:
     - id: napari-depth-visualizer.write_single_image
       python_name: napari_depth_visualizer._writer:write_single_image
       title: Save image data with Color z-planes
-    # - id: napari-depth-visualizer.make_container_widget
-    #   python_name: napari_depth_visualizer:ZProjection
-    #   title: Make z-projection Container widget
-    # - id: napari-depth-visualizer.make_magic_widget
-    #   python_name: napari_depth_visualizer:threshold_magic_widget
-    #   title: Make threshold magic widget
-    # - id: napari-depth-visualizer.make_container_widget_alternative
-    #   python_name: napari_depth_visualizer:Alternative
-    #   title: Make alternative design
     - id: napari-depth-visualizer.make_qwidget
-      python_name: napari_depth_visualizer:ExampleQWidget
-      title: Make example QWidget
+      python_name: napari_depth_visualizer:ColorQWidget
+      title: Interactive Widget
   readers:
     - command: napari-depth-visualizer.get_reader
       accepts_directories: false
@@ -39,11 +30,5 @@ contributions:
       layer_types: ['image']
       filename_extensions: ['.npy']
   widgets:
-    # - command: napari-depth-visualizer.make_container_widget
-    #   display_name: Z-Projection  
-    # - command: napari-depth-visualizer.make_magic_widget
-    #   display_name: Create Composite
-    # - command: napari-depth-visualizer.make_container_widget_alternative
-    #   display_name: Alternative
     - command: napari-depth-visualizer.make_qwidget
-      display_name: Example QWidget
+      display_name: Multi-Color Visualization

@@ -168,7 +168,7 @@ class ColorQWidget(QWidget):
                 self.input_layer.addItem(layer.name, layer)
 
     ########################### Execution ########################### 
-    def _compute_z_projections(self):
+    def _compute_z_projection(self):
         """Computes z-projections for all 3 stacks; output is None for stacks where slice input is invalid"""
 
         image_layer = self.input_layer.currentData()
@@ -196,12 +196,35 @@ class ColorQWidget(QWidget):
                     show_info("Range input is not valid for stack {}." .format(stack+1))
                     return
 
+        # # Compute Projections
+        # for stack in range(3):    
+        #     if proj_types_all[stack].currentText() == "Raw":
+        #         img_projected = self.input_layer.currentData().data
+        #     else:
+        #         if proj_types_all[stack].currentText() == "Average Intensity":
+        #             print("Image Shape:", image.shape)
+        #             img_projected = _average_intensity(image, slice_input_all[stack])
+        #         elif proj_types_all[stack].currentText() == "Min Intensity":
+        #             img_projected = _min_intensity(image, slice_input_all[stack])
+        #         elif proj_types_all[stack].currentText() == "Max Intensity":
+        #             img_projected = _max_intensity(image, slice_input_all[stack])
+        #         elif proj_types_all[stack].currentText() == "Sum Slices":
+        #             img_projected = _sum_slices(image, slice_input_all[stack])
+        #         elif proj_types_all[stack].currentText() == "Standard Deviation":
+        #             img_projected = _standard_deviation(image, slice_input_all[stack])
+        #         elif proj_types_all[stack].currentText() == "Median":
+        #             img_projected = _median_intensity(image, slice_input_all[stack])
+        #         else:
+        #             img_projected = None
+        #     outputs.append(img_projected)             
+        # return outputs
+
         # Compute Projections
         for stack in range(3):    
             if proj_types_all[stack].currentText() == "Raw":
                 img_projected = self.input_layer.currentData().data
             else:
-                img_projected = _project_stack(image, slice_input_all[stack], proj_types_all[stack].currentText())
+                img_projected = _map_projection_type(image, slice_input_all[stack], proj_types_all[stack].currentText())
             outputs.append(img_projected)             
         return outputs
     
@@ -209,7 +232,7 @@ class ColorQWidget(QWidget):
     def _show_z_projections(self):
         """Add projected images as image layers to viewer"""
         image_layer = self.input_layer.currentData()
-        images_projected = self._compute_z_projections()
+        images_projected = self._compute_z_projection()
         if images_projected == None:
             return
         else:
@@ -220,7 +243,7 @@ class ColorQWidget(QWidget):
 
     def _project_then_merge_stacks(self):
         # TODO: possibility to merge only 2 stacks?
-        images_projected = self._compute_z_projections()
+        images_projected = self._compute_z_projection()
         if images_projected == None:
             return
         # Normalize; RGB range [0, 255]
@@ -278,12 +301,7 @@ class ColorQWidget(QWidget):
     
 
 ########################### Internal Helper Functions ########################### 
-def _project_stack(image, slice_range, proj_type_string):
-    """
-    Given that input has dimensions TZYX, projects stack along Z-axis
-    Outputs image of dimension TZYX
-    """
-    
+def _map_projection_type(image, slice_range, proj_type_string):
     proj_functions_dict = {
         "Average Intensity": np.mean,
         "Min Intensity": np.min,
@@ -294,6 +312,10 @@ def _project_stack(image, slice_range, proj_type_string):
 
     }
 
+    """
+    Given that input has dimensions TZYX, averages stack of slice_num planes along Z-axis
+    Outputs image of dimension TZYX
+    """
     slice_start, slice_end = slice_range.split(",")
     slice_num = abs(int(slice_start) - int(slice_end)) + 1 # inclusive range, Ex. [1, 3] -> 1, 2, 3
     t, z, y, x = image.shape # Image dimensions
@@ -309,6 +331,132 @@ def _project_stack(image, slice_range, proj_type_string):
         else:
             image_projected[:, i] = proj_function(image[:, i-slice_num:i+slice_num], axis=1)
     
+    return image_projected
+
+def _average_intensity(image, slice_range):
+    """
+    Given that input has dimensions TZYX, averages stack of slice_num planes along Z-axis
+    Outputs image of dimension TZYX
+    """
+    slice_start, slice_end = slice_range.split(",")
+    slice_num = abs(int(slice_start) - int(slice_end)) + 1 # inclusive range, Ex. [1, 3] -> 1, 2, 3
+    t, z, y, x = image.shape # Image dimensions
+    image_projected = np.zeros(image.shape)
+
+    for i in range(z):
+        if i - slice_num < 0:
+            image_projected[:, i] = np.mean(image[:, 0:i+slice_num], axis=1)
+        elif i + slice_num >= z:
+            image_projected[:, i] = np.mean(image[:, i:z], axis=1)
+        else:
+            image_projected[:, i] = np.mean(image[:, i-slice_num:i+slice_num], axis=1)
+    
+    return image_projected
+    
+
+def _max_intensity(image, slice_range):
+    """
+    Given that image has dimensions TZYX, compute max intensity projection along Z-axis
+    Outputs image of dimension TYX
+    Max intensity projection of stack
+    """       
+    slice_start, slice_end = slice_range.split(",")
+    slice_num = abs(int(slice_start) - int(slice_end)) + 1 # inclusive range, Ex. [1, 3] -> 1, 2, 3
+    t, z, y, x = image.shape # Image dimensions
+    image_projected = np.zeros(image.shape)
+
+    for i in range(z):
+        if i - slice_num < 0:
+            image_projected[:, i] = np.max(image[:, 0:i+slice_num], axis=1)
+        elif i + slice_num >= z:
+            image_projected[:, i] = np.max(image[:, i:z], axis=1)
+        else:
+            image_projected[:, i] = np.max(image[:, i-slice_num:i+slice_num], axis=1)
+
+    return image_projected
+
+
+def _min_intensity(image, slice_range):
+    """
+    Given that input has dimensions TZYX, compute min intensity projection along Z-axis
+    Outputs image of dimension TYX
+    """
+    slice_start, slice_end = slice_range.split(",")
+    slice_num = abs(int(slice_start) - int(slice_end)) + 1 # inclusive range, Ex. [1, 3] -> 1, 2, 3
+    t, z, y, x = image.shape # Image dimensions
+    image_projected = np.zeros(image.shape)
+
+    for i in range(z):
+        if i - slice_num < 0:
+            image_projected[:, i] = np.min(image[:, 0:i+slice_num], axis=1)
+        elif i + slice_num >= z:
+            image_projected[:, i] = np.min(image[:, i:z], axis=1)
+        else:
+            image_projected[:, i] = np.min(image[:, i-slice_num:i+slice_num], axis=1)
+
+    return image_projected
+
+
+def _median_intensity(image, slice_range):
+    """
+    Given that input has dimensions TZYX, compute median intensity projection along Z-axis
+    Outputs image of dimension TYX
+    """
+    slice_start, slice_end = slice_range.split(",")
+    slice_num = abs(int(slice_start) - int(slice_end)) + 1 # inclusive range, Ex. [1, 3] -> 1, 2, 3
+    t, z, y, x = image.shape # Image dimensions
+    image_projected = np.zeros(image.shape)
+
+    for i in range(z):
+        if i - slice_num < 0:
+            image_projected[:, i] = np.median(image[:, 0:i+slice_num], axis=1)
+        elif i + slice_num >= z:
+            image_projected[:, i] = np.median(image[:, i:z], axis=1)
+        else:
+            image_projected[:, i] = np.median(image[:, i-slice_num:i+slice_num], axis=1)
+
+    return image_projected
+
+
+def _sum_slices(image, slice_range):
+    """
+    Given that input has dimensions TZYX, compute median intensity projection along Z-axis
+    Outputs image of dimension TYX
+    """
+    slice_start, slice_end = slice_range.split(",")
+    slice_num = abs(int(slice_start) - int(slice_end)) + 1 # inclusive range, Ex. [1, 3] -> 1, 2, 3
+    t, z, y, x = image.shape # Image dimensions
+    image_projected = np.zeros(image.shape)
+
+    for i in range(z):
+        if i - slice_num < 0:
+            image_projected[:, i] = np.sum(image[:, 0:i+slice_num], axis=1)
+        elif i + slice_num >= z:
+            image_projected[:, i] = np.sum(image[:, i:z], axis=1)
+        else:
+            image_projected[:, i] = np.sum(image[:, i-slice_num:i+slice_num], axis=1)
+
+    return image_projected
+
+
+def _standard_deviation(image, slice_range):
+    """
+    Given that input has dimensions TZYX, compute median intensity projection along Z-axis
+    Outputs image of dimension TYX
+    """
+    slice_start, slice_end = slice_range.split(",")
+    slice_num = abs(int(slice_start) - int(slice_end)) + 1 # inclusive range, Ex. [1, 3] -> 1, 2, 3
+    t, z, y, x = image.shape # Image dimensions
+    image_projected = np.zeros(image.shape)
+
+    for i in range(z):
+        if i - slice_num < 0:
+            image_projected[:, i] = np.std(image[:, 0:i+slice_num], axis=1)
+        elif i + slice_num >= z:
+            image_projected[:, i] = np.std(image[:, i:z], axis=1)
+        else:
+            image_projected[:, i] = np.std(image[:, i-slice_num:i+slice_num], axis=1)
+
     return image_projected
 
 
