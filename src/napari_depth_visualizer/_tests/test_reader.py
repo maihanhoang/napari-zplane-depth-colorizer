@@ -1,5 +1,5 @@
 import numpy as np
-
+import tifffile
 from napari_depth_visualizer import napari_get_reader
 
 
@@ -8,9 +8,12 @@ def test_reader(tmp_path):
     """An example of how you might test your plugin."""
 
     # write some fake data using your supported file format
-    my_test_file = str(tmp_path / "myfile.npy")
-    original_data = np.random.rand(20, 20)
-    np.save(my_test_file, original_data)
+    my_test_file = str(tmp_path / "myfile.tif")
+    # original_data = np.random.rand(20, 20)
+    # np.save(my_test_file, original_data)
+    
+    original_data = np.random.randint(10, 15, (50, 50), dtype=np.uint8)
+    tifffile.imwrite(my_test_file, original_data)
 
     # try to read it back in
     reader = napari_get_reader(my_test_file)
@@ -29,3 +32,10 @@ def test_reader(tmp_path):
 def test_get_reader_pass():
     reader = napari_get_reader("fake.file")
     assert reader is None
+
+
+# # Added by Mai
+# if __name__ == "__main__":
+#     test_reader("/home/mai/Documents/napari-depth-visualizer/outputs")
+#     test_get_reader_pass()
+#     print("All reader tests passed.")

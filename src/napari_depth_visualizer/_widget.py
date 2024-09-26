@@ -77,7 +77,7 @@ class ColorQWidget(QWidget):
         self.slices_1 = QLineEdit()
         self.slices_1.setText("-2, -1")
         self.slices_2 = QLineEdit()
-        self.slices_2.setText("0, 0")        
+        self.slices_2.setText("")        
         self.slices_3 = QLineEdit()
         self.slices_3.setText("1, 2")
         
@@ -102,11 +102,10 @@ class ColorQWidget(QWidget):
         self.slices_2.textChanged.connect(self._on_text_change)
         self.slices_3.textChanged.connect(self._on_text_change)
 
-        self.btn_create_z_projections.clicked.connect(self._show_z_projections)  
-        self.btn_merge_stacks.clicked.connect(self._project_then_merge_stacks) 
+        self.btn_create_z_projections.clicked.connect(self.show_z_projections)  
+        self.btn_merge_stacks.clicked.connect(self.project_then_merge_stacks) 
         
-        # Saving file
-        self.btn_save_file.clicked.connect(self._save_to_file)
+        self.btn_save_file.clicked.connect(self.save_to_file)
 
     ########################### Layout ########################### 
     def _set_grid_layout(self):
@@ -159,6 +158,7 @@ class ColorQWidget(QWidget):
             entered_text = slices_all[stack].text()
             slices_all[stack].setText(entered_text)
 
+
     def _update_input_options(self):
         """Update the combo box with the current image layers."""
         self.input_layer.clear()
@@ -168,17 +168,24 @@ class ColorQWidget(QWidget):
                 self.input_layer.addItem(layer.name, layer)
 
     ########################### Execution ########################### 
-    def _compute_z_projections(self):
+    def compute_z_projections(self):
         """Computes z-projections for all 3 stacks; output is None for stacks where slice input is invalid"""
-
-        image_layer = self.input_layer.currentData()
-        image = image_layer.data # img_as_float(image_layer.data)
-        
-        if image_layer is None:
+        if self.input_layer.currentData() is None:
             show_info("No input image.") 
             return
+        
+        image = self.input_layer.currentData().data
+
         if len(image.shape) != 4:
-            show_info("Image must be 4D with dimensions TZYX")
+            show_info("Image must be 4D with dimensions TZYX.")
+            return
+        
+        if np.isnan(image).any():
+            show_info("Image contains nan values.")
+            return
+
+        if 1 in image.shape:
+            show_info("Not a true 4D image, contains dimension of size 1.")
             return
 
         proj_types_all = [self.proj_type_1, self.proj_type_2, self.proj_type_3]
@@ -188,11 +195,13 @@ class ColorQWidget(QWidget):
         # Check input range is valid for all 3 stacks
         for stack in range(3):    
             if proj_types_all[stack].currentText() == "Raw":
-                if slice_input_all[stack] != "" and _is_slice_input_valid(image, slice_input_all[stack]) is False:
+                if (slice_input_all[stack] != "" and
+                    not slice_input_all[stack].isspace() and 
+                    not _is_slice_input_valid(image, slice_input_all[stack])):
                     show_info("Range input is not valid for stack {}." .format(stack+1))
                     return
             else:
-                if _is_slice_input_valid(image, slice_input_all[stack]) is False:
+                if not _is_slice_input_valid(image, slice_input_all[stack]):
                     show_info("Range input is not valid for stack {}." .format(stack+1))
                     return
 
@@ -206,21 +215,22 @@ class ColorQWidget(QWidget):
         return outputs
     
 
-    def _show_z_projections(self):
+    def show_z_projections(self):
         """Add projected images as image layers to viewer"""
         image_layer = self.input_layer.currentData()
-        images_projected = self._compute_z_projections()
+        images_projected = self.compute_z_projections()
         if images_projected == None:
             return
         else:
+            # images_projected_normed = [(img / np.max(img) * 255).astype('uint8') for img in images_projected] 
+            # for stack, img in enumerate(images_projected_normed):
             for stack, img in enumerate(images_projected):
                 name = image_layer.name + "_zproj_stack" + str(stack+1)
                 self.viewer.add_image(img, name=name) 
     
 
-    def _project_then_merge_stacks(self):
-        # TODO: possibility to merge only 2 stacks?
-        images_projected = self._compute_z_projections()
+    def project_then_merge_stacks(self):
+        images_projected = self.compute_z_projections()
         if images_projected == None:
             return
         # Normalize; RGB range [0, 255]
@@ -230,11 +240,17 @@ class ColorQWidget(QWidget):
         t, z, y, x = image_input.shape 
         result = np.zeros((t, z, y, x, 3))
 
-        # Shifted 
+        proj_types_all = [self.proj_type_1, self.proj_type_2, self.proj_type_3]
         slice_input_all = [self.slices_1.text(), self.slices_2.text(), self.slices_3.text()]
 
         for stack in range(3):
-            slice_start, slice_end = slice_input_all[stack].split(",")
+            if proj_types_all[stack].currentText() == "Raw" and slice_input_all[stack] == "":
+                slice_start, slice_end = (0, 0)
+            elif proj_types_all[stack].currentText() == "Raw" and slice_input_all[stack].isspace():
+                slice_start, slice_end = (0, 0)
+            else:
+                slice_start, slice_end = slice_input_all[stack].split(",")
+            
             if int(slice_start) == 0 and int(slice_end) == 0:
                 result[:, :, :, :, stack] = images_projected_normed[stack]
             elif int(slice_start) >= 0 and int(slice_end) > 0: # positive numbers and 0, then shift by range end
@@ -249,7 +265,7 @@ class ColorQWidget(QWidget):
         self.viewer.add_image(result.astype("uint8"))
 
 
-    def _save_to_file(self):
+    def save_to_file(self):
         # Open file dialog to select a file to save
         options = QFileDialog.Options()
         fileName, _ = QFileDialog.getSaveFileName(self, "Save File", "", "All Files (*);;Tif Files (*.tif, *.tiff)", options=options)
@@ -301,13 +317,23 @@ def _project_stack(image, slice_range, proj_type_string):
     image_projected = np.zeros(image.shape)
     proj_function = proj_functions_dict[proj_type_string]
 
-    for i in range(z):
-        if i - slice_num < 0:
-            image_projected[:, i] = proj_function(image[:, 0:i+slice_num], axis=1)
-        elif i + slice_num >= z:
-            image_projected[:, i] = proj_function(image[:, i:z], axis=1)
-        else:
-            image_projected[:, i] = proj_function(image[:, i-slice_num:i+slice_num], axis=1)
+    if proj_type_string == "Standard Deviation":
+        for i in range(z):
+            if i - slice_num < 0:
+                image_projected[:, i] = proj_function(image[:, 0:i+slice_num], axis=1, ddof=1)
+            elif i + slice_num >= z:
+                image_projected[:, i] = proj_function(image[:, i:z], axis=1, ddof=1)
+            else:
+                image_projected[:, i] = proj_function(image[:, i-slice_num:i+slice_num], axis=1, ddof=1)
+
+    else:
+        for i in range(z):
+            if i - slice_num < 0:
+                image_projected[:, i] = proj_function(image[:, 0:i+slice_num], axis=1)
+            elif i + slice_num >= z:
+                image_projected[:, i] = proj_function(image[:, i:z], axis=1)
+            else:
+                image_projected[:, i] = proj_function(image[:, i-slice_num:i+slice_num], axis=1)
     
     return image_projected
 
@@ -336,10 +362,10 @@ def _is_slice_input_valid(image, range_input):
     # Check single substring
     range = range_input.replace(" ", "") # remove all whitespace
     
-    if len(range.split(sep=',')) != 2:
+    if len(range.split(sep=',')) != 2 or "" in range.split(sep=','):
         return False
     
-    range_start, range_end = map(int, range.split(sep=',')) # separate by commas
+    range_start, range_end = map(int, range.split(sep=','))
     
     # Check that it is a valid range
     if not -z < range_start < z or not -z < range_end < z: # Ranges cannot exceed number of planes TODO: Re-check

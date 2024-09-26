@@ -6,7 +6,7 @@ implement multiple readers or even other plugin contributions. see:
 https://napari.org/stable/plugins/guides.html?#readers
 """
 import numpy as np
-
+import tifffile
 
 # def napari_get_reader(path):
 #     """A basic implementation of a Reader contribution.
@@ -57,7 +57,7 @@ def napari_get_reader(path):
         path = path[0]
 
     # for now, only accept tifs
-    if not path.endswith(".tif"):
+    if not path.endswith(".tif"): # or not path.endswith(".tiff"):
         return None
 
     # otherwise we return the *function* that can read ``path``.
@@ -91,7 +91,8 @@ def reader_function(path):
     # handle both a string and a list of strings
     paths = [path] if isinstance(path, str) else path
     # load all files into array
-    arrays = [np.load(_path) for _path in paths]
+    arrays = [tifffile.imread(_path) for _path in paths]
+    
     # stack arrays into single array
     data = np.squeeze(np.stack(arrays))
 
