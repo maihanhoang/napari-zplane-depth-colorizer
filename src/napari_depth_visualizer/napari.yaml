@@ -15,6 +15,9 @@ contributions:
     - id: napari-depth-visualizer.write_single_image
       python_name: napari_depth_visualizer._writer:write_single_image
       title: Save image data with Color z-planes
+    - id: napari-depth-visualizer.make_sample_data
+      python_name: napari_depth-visualizer._sample_data:make_sample_data
+      title: Load gastruloid sample data
     - id: napari-depth-visualizer.make_qwidget
       python_name: napari_depth_visualizer:ColorQWidget
       title: Interactive Widget
@@ -29,6 +32,10 @@ contributions:
     - command: napari-depth-visualizer.write_single_image
       layer_types: ['image']
       filename_extensions: ['.npy']
+  sample_data:
+    - command: napari-depth-visualizer.make_sample_data
+      display_name: Gastruloid
+      key: unique_id.1
   widgets:
     - command: napari-depth-visualizer.make_qwidget
       display_name: Multi-Color Visualization

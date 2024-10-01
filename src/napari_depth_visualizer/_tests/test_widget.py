@@ -9,73 +9,38 @@ from napari_depth_visualizer._widget import (
     ColorQWidget
 )
 
-# # make_napari_viewer is a pytest fixture that returns a napari viewer object
-# # you don't need to import it, as long as napari is installed
-# # in your testing environment
-# def test_threshold_magic_widget(make_napari_viewer):
-#     viewer = make_napari_viewer()
-#     layer = viewer.add_image(np.random.random((100, 100)))
-
-#     # our widget will be a MagicFactory or FunctionGui instance
-#     my_widget = threshold_magic_widget()
-
-#     # if we "call" this object, it'll execute our function
-#     thresholded = my_widget(viewer.layers[0], 0.5)
-#     assert thresholded.shape == layer.data.shape
-#     # etc.
-
-
-# def test_image_threshold_widget(make_napari_viewer):
-#     viewer = make_napari_viewer()
-#     layer = viewer.add_image(np.random.random((100, 100)))
-#     my_widget = ImageThreshold(viewer)
-
-#     # because we saved our widgets as attributes of the container
-#     # we can set their values without having to "interact" with the viewer
-#     my_widget._image_layer_combo.value = layer
-#     my_widget._threshold_slider.value = 0.5
-
-#     # this allows us to run our functions directly and ensure
-#     # correct results
-#     my_widget._threshold_im()
-#     assert len(viewer.layers) == 2
-
-
-# # capsys is a pytest fixture that captures stdout and stderr output streams
-# def test_example_q_widget(make_napari_viewer, capsys):
-#     # make viewer and add an image layer using our fixture
-#     viewer = make_napari_viewer()
-#     viewer.add_image(np.random.random((100, 100)))
-
-#     # create our widget, passing in the viewer
-#     my_widget = ExampleQWidget(viewer)
-
-#     # call our widget method
-#     my_widget._on_click()
-
-#     # read captured output and check that it's as we expected
-#     captured = capsys.readouterr()
-#     assert captured.out == "napari has 1 layers\n"
-
-# @pytest.fixture
-# def img_layer():
-#     return Image(np.random.random((10, 15, 50, 50)), name="img")
-
-# @pytest.fixture
-# def napari_widget_with_valid_test_image(make_napari_viewer):
-#     viewer = make_napari_viewer()
-#     widget = ColorQWidget(viewer)
-#     input_data = np.random.random((10, 15, 50, 50))
-#     viewer.add_image(input_data)
-#     widget._update_input_options()
-
-#     return viewer, widget, input_data
-
-
-def test_default_settings(make_napari_viewer):
+# ================================================================
+# Helper functions
+# ================================================================
+def napari_viewer_widget(make_napari_viewer):
     viewer = make_napari_viewer()
     widget = ColorQWidget(viewer)
-    # qtbot.addWidget(widget)
+
+    return viewer, widget
+
+  
+def napari_viewer_widget_with_valid_test_image(make_napari_viewer):
+    viewer, widget = napari_viewer_widget(make_napari_viewer)
+    input_data = np.random.random((10, 15, 50, 50))
+    viewer.add_image(input_data)
+    widget._update_input_options()
+
+    return viewer, widget, input_data
+
+
+def was_layer_added(num_layers_prev, viewer):
+    num_layers_now = len(viewer.layers)
+    if num_layers_prev < num_layers_now:
+        return True
+    else:
+        return False
+
+
+# ================================================================
+# Testing functions
+# ================================================================
+def test_default_settings(make_napari_viewer):
+    _, widget = napari_viewer_widget(make_napari_viewer)
 
     assert widget.proj_type_1.currentText() == "Average Intensity"
     assert widget.proj_type_2.currentText() == "Raw"
@@ -88,35 +53,23 @@ def test_default_settings(make_napari_viewer):
 
 def test_show_z_projections_default(make_napari_viewer):
     # Create widget
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
-
-    # Add test input image
-    input_data = np.random.random((10, 15, 50, 50))
-    viewer.add_image(input_data)
-    widget._update_input_options()
+    viewer, widget, input_data = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
 
     # Compute z-projections
+    input_data_dim = input_data.shape
     widget.show_z_projections()
     zproj_1 = viewer.layers[-3]
     zproj_2 = viewer.layers[-2]
     zproj_3 = viewer.layers[-1]
 
-    assert isinstance(zproj_1, Image) and zproj_1.data.shape == widget.input_layer.currentData().data.shape
-    assert isinstance(zproj_2, Image) and zproj_2.data.shape == widget.input_layer.currentData().data.shape
-    assert isinstance(zproj_3, Image) and zproj_3.data.shape == widget.input_layer.currentData().data.shape
+    assert isinstance(zproj_1, Image) and zproj_1.data.shape == input_data_dim
+    assert isinstance(zproj_2, Image) and zproj_2.data.shape == input_data_dim
+    assert isinstance(zproj_3, Image) and zproj_3.data.shape == input_data_dim
 
 
 def test_project_merge_stacks_default(make_napari_viewer):
     # Create widget
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
-
-    # Add test input image
-    # input_data = Image(np.random.random((10, 15, 50, 50)), name="img")
-    input_data = np.random.random((10, 15, 50, 50))
-    viewer.add_image(input_data)
-    widget._update_input_options()
+    viewer, widget, input_data = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
 
     # Compute merged z-projections
     widget.project_then_merge_stacks()
@@ -128,12 +81,14 @@ def test_project_merge_stacks_default(make_napari_viewer):
 
 def test_equal_to_fiji_projection(make_napari_viewer):
     # Create widget
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
+    viewer, widget = napari_viewer_widget(make_napari_viewer)
 
     # Add test input image
     file_dir = os.path.join(os.path.dirname(__file__), '../data')
     input_data = imread(file_dir + "/3D+t.tif")
+    viewer.add_image(input_data)
+    widget._update_input_options()
+
     # Z-Projections by Fiji
     proj_fiji_avg = imread(file_dir + "/tests/fiji_avg12.tif")
     proj_fiji_min = imread(file_dir + "/tests/fiji_min12.tif")
@@ -141,9 +96,6 @@ def test_equal_to_fiji_projection(make_napari_viewer):
     proj_fiji_sum = imread(file_dir + "/tests/fiji_sum12.tif")
     proj_fiji_std = imread(file_dir + "/tests/fiji_std12.tif")
     proj_fiji_median = imread(file_dir + "/tests/fiji_median12.tif")
-
-    viewer.add_image(input_data)
-    widget._update_input_options()
 
     # Test Avg, Min, Max
     widget.proj_type_1.setCurrentText("Average Intensity")
@@ -182,21 +134,21 @@ def test_equal_to_fiji_projection(make_napari_viewer):
     assert (np.isclose(proj_median, proj_fiji_median, atol=1)).all()
 
 
-def test_no_input(make_napari_viewer):
+def test_no_input(make_napari_viewer, capsys):
     # Create widget
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
+    viewer, widget = napari_viewer_widget(make_napari_viewer)
 
     widget.show_z_projections()
     widget.project_then_merge_stacks()
 
+    # Check no layer was added and correct error message is shown
     assert was_layer_added(0, viewer) is False
+    assert ("No input image.") in capsys.readouterr().out 
 
 
 def test_invalid_image_dimensions_3D(make_napari_viewer, capsys):
     # Create widget
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
+    viewer, widget = napari_viewer_widget(make_napari_viewer)
 
     # Add 3D test image
     input_data_3D = np.random.random((10, 15, 50))
@@ -209,13 +161,12 @@ def test_invalid_image_dimensions_3D(make_napari_viewer, capsys):
 
     # Check no layer was added and correct error message is shown
     assert was_layer_added(num_layers, viewer) is False
-    assert "Image must be 4D with dimensions TZYX." in capsys.readouterr().out 
+    assert ("Image must be 4D with dimensions TZYX.") in capsys.readouterr().out 
 
 
-def test_invalid_image_dimensions_5D(make_napari_viewer):
+def test_invalid_image_dimensions_5D(make_napari_viewer, capsys):
     # Create widget
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
+    viewer, widget = napari_viewer_widget(make_napari_viewer)
 
     # Add 5D test image
     input_data_3D = np.random.random((10, 15, 50, 5, 3))
@@ -226,12 +177,14 @@ def test_invalid_image_dimensions_5D(make_napari_viewer):
     widget.show_z_projections()
     widget.project_then_merge_stacks()
 
+    # Check no layer was added and correct error message is shown
     assert was_layer_added(num_layers, viewer) is False
+    assert ("Image must be 4D with dimensions TZYX.") in capsys.readouterr().out 
 
 
-def test_image_containing_nans(make_napari_viewer):
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
+def test_image_containing_nans(make_napari_viewer, capsys):
+    # Create widget
+    viewer, widget = napari_viewer_widget(make_napari_viewer)
     
     # Add test image containing nans
     input_data = np.random.random((10, 15, 50, 50))
@@ -243,12 +196,13 @@ def test_image_containing_nans(make_napari_viewer):
     widget.show_z_projections()
     widget.project_then_merge_stacks()
 
+    # Check no layer was added and correct error message is shown
     assert was_layer_added(num_layers, viewer) is False
+    assert ("Image contains nan values.") in capsys.readouterr().out 
 
 
-def test_image_dimension_1(make_napari_viewer):
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
+def test_image_dimension_1(make_napari_viewer, capsys):
+    viewer, widget = napari_viewer_widget(make_napari_viewer)
 
     # Add test image with dimension of size 1
     input_data = np.random.random((1, 15, 20, 20))
@@ -259,120 +213,74 @@ def test_image_dimension_1(make_napari_viewer):
     widget.show_z_projections()
     widget.project_then_merge_stacks()
 
+    # Check no layer was added and correct error message is shown
     assert was_layer_added(num_layers, viewer) is False
+    assert ("Not a true 4D image, contains dimension of size 1.") in capsys.readouterr().out 
 
 
-# def test_image_negative_values():
-#     return None
-
-
-# def test_show_z_projections_valid_params():
-
-# def test_raw_zproj_equals_input():
-
-
-def test_invalid_params(make_napari_viewer):
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
-
-    # Add test image
-    input_data = np.random.random((10, 15, 50, 50))
-    viewer.add_image(input_data)
-    widget._update_input_options()
+def test_invalid_params(make_napari_viewer, capsys):
+    viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
     num_layers = len(viewer.layers)
-    
-    widget.slices_1.setText("1; 2")
-    widget.slices_2.setText("1, 2")
-    widget.slices_3.setText("1, 2")
-    widget.show_z_projections()
-    widget.project_then_merge_stacks()
-
-    widget.slices_1.setText("1, 2")
-    widget.slices_2.setText("[1, 2]")
-    widget.slices_3.setText("1, 2")
-    widget.show_z_projections()
-    widget.project_then_merge_stacks()
-
     widget.slices_1.setText("1, 2")
     widget.slices_2.setText("1, 2")
-    widget.slices_3.setText("1to2")
-    widget.show_z_projections()
-    widget.project_then_merge_stacks()
 
-    widget.slices_1.setText("1, 2")
-    widget.slices_2.setText("1, 2")
-    widget.slices_3.setText("1 & 2")
-    widget.show_z_projections()
-    widget.project_then_merge_stacks()
+    invalid_params = ["1; 2", "[1, 2]", "1to2", "1 & 2", "1, 2, 3", "1,     ", ""]
+    for params in invalid_params:
+        widget.slices_3.setText(params)
+        widget.show_z_projections()
+        widget.project_then_merge_stacks()
 
-    widget.slices_1.setText("1, 2")
-    widget.slices_2.setText("1, 2")
-    widget.slices_3.setText("1, 2, 3")
-    widget.show_z_projections()
-    widget.project_then_merge_stacks()
+        # Check no layer was added and correct error message is shown
+        assert was_layer_added(num_layers, viewer) is False
+        assert ("Range input is not valid for stack 3.") in capsys.readouterr().out 
 
-    widget.slices_1.setText("1, 2")
-    widget.slices_2.setText("1, 2")
-    widget.slices_3.setText("1,     ")
-    widget.show_z_projections()
-    widget.project_then_merge_stacks()
 
-    widget.slices_1.setText("1, 2")
-    widget.slices_2.setText("1, 2")
-    widget.slices_3.setText("")
-    widget.show_z_projections()
+# Projection type "RAW" is special, because it allows empty and space params as shift input
+def test_invalid_params_raw(make_napari_viewer, capsys):
+    viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
+    num_layers = len(viewer.layers)
+
+    widget.slices_2.setText("12")
     widget.project_then_merge_stacks()
 
     assert was_layer_added(num_layers, viewer) is False
+    assert ("Range input is not valid for stack 2.") in capsys.readouterr().out 
 
 
-def test_invalid_space_params(make_napari_viewer):
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
-
-    # Add test image 
-    input_data = np.random.random((10, 15, 50, 50))
-    viewer.add_image(input_data)
-    widget._update_input_options()
+def test_invalid_space_params(make_napari_viewer, capsys):
+    viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
     num_layers = len(viewer.layers)
     
     widget.proj_type_1.setCurrentText("Sum Slices")
     widget.slices_1.setText("     ")
+
     widget.show_z_projections()
     widget.project_then_merge_stacks()
 
+    # Check no layer was added and correct error message is shown
     assert was_layer_added(num_layers, viewer) is False
+    assert ("Range input is not valid for stack 1.") in capsys.readouterr().out 
 
 
-def test_valid_space_params(make_napari_viewer):
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
-
-    # Add test image 
-    input_data = np.random.random((10, 15, 50, 50))
-    viewer.add_image(input_data)
-    widget._update_input_options()
+def test_valid_space_params(make_napari_viewer, capsys):
+    viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
     
     widget.proj_type_1.setCurrentText("Raw")
     widget.slices_1.setText("     ")
-
+    
     num_layers = len(viewer.layers)
     widget.show_z_projections()
     assert was_layer_added(num_layers, viewer) is True
+    assert capsys.readouterr().out is ''
 
     num_layers = len(viewer.layers)
     widget.project_then_merge_stacks()
     assert was_layer_added(num_layers, viewer) is True
+    assert capsys.readouterr().out is ''
 
 
-def test_valid_empty_params(make_napari_viewer):
-    viewer = make_napari_viewer()
-    widget = ColorQWidget(viewer)
-
-    # Add test image 
-    input_data = np.random.random((10, 15, 50, 50))
-    viewer.add_image(input_data)
-    widget._update_input_options()
+def test_valid_empty_params(make_napari_viewer, capsys):
+    viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
     
     widget.proj_type_1.setCurrentText("Raw")
     widget.slices_1.setText("")
@@ -380,30 +288,46 @@ def test_valid_empty_params(make_napari_viewer):
     num_layers = len(viewer.layers)
     widget.show_z_projections()
     assert was_layer_added(num_layers, viewer) is True
+    assert capsys.readouterr().out is ''
 
     num_layers = len(viewer.layers)
     widget.project_then_merge_stacks()
     assert was_layer_added(num_layers, viewer) is True
+    assert capsys.readouterr().out is ''
 
 
-def test_params_out_of_range():
-    return
+def test_params_out_of_range(make_napari_viewer, capsys):
+    viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
+    num_layers = len(viewer.layers)
+    
+    widget.slices_1.setText("-15, -14") # Image is of dim. (10, 15, 50, 50)
+    widget.project_then_merge_stacks()
+    assert was_layer_added(num_layers, viewer) is False
+    assert ("Range input is not valid for stack 1.") in capsys.readouterr().out 
+
+    widget.slices_1.setText("+15, -12") # Image is of dim. (10, 15, 50, 50)
+    widget.project_then_merge_stacks()
+    assert was_layer_added(num_layers, viewer) is False
+    assert ("Range input is not valid for stack 1.") in capsys.readouterr().out 
 
 
-def was_layer_added(num_layers_prev, viewer):
-    num_layers_now = len(viewer.layers)
-    if num_layers_prev < num_layers_now:
-        return True
-    else:
-        return False
+def test_invalid_range_params(make_napari_viewer, capsys):
+    viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
+    num_layers = len(viewer.layers)
+    
+    widget.slices_1.setText("15, -14") # Image is of dim. (10, 15, 50, 50)
+    widget.project_then_merge_stacks()
+    assert was_layer_added(num_layers, viewer) is False
+    assert ("Range input is not valid for stack 1.") in capsys.readouterr().out 
+
+    widget.slices_1.setText("-12, -13") # Image is of dim. (10, 15, 50, 50)
+    widget.project_then_merge_stacks()
+    assert was_layer_added(num_layers, viewer) is False
+    assert ("Range input is not valid for stack 1.") in capsys.readouterr().out 
 
 
-# def test_zprojections_equal_if_params_equal():
-# same params in stack 1 and stack3
-# [-2, 1] and [1, 2] should have same zprojection output 
-
-
-# Test saving function using QFileDialog, using mock to avoid interactive window
+# Test saving function using QFileDialog, using mock to avoid interactive pop-up window
+# Test saving image as rgb image
 @patch('napari_depth_visualizer._widget.QFileDialog.getSaveFileName')
 @patch('napari_depth_visualizer._widget.tifffile.imwrite')
 def test_save_to_file_rgb(mock_imwrite, mock_get_save_file_name):
@@ -433,7 +357,7 @@ def test_save_to_file_rgb(mock_imwrite, mock_get_save_file_name):
     assert np.array_equal(saved_data, np.transpose(input_data, (0, 1, 4, 2, 3)))
 
 
-# Test case where composite button is checked and a file is selected
+# Test saving image as composite
 @patch('napari_depth_visualizer._widget.QFileDialog.getSaveFileName')
 @patch('napari_depth_visualizer._widget.tifffile.imwrite')
 def test_save_to_file_composite(mock_imwrite, mock_get_save_file_name):
@@ -468,11 +392,9 @@ def test_save_to_file_no_format(mock_get_save_file_name):
     # Mock the file dialog to return a fake file path
     mock_get_save_file_name.return_value = ('/mock/path/to/file.tif', '')
     
-    # Create an instance of the class
     viewer = MagicMock()
     widget = ColorQWidget(viewer)
 
-    # Mock the buttons and image data in the viewer
     widget.btn_rgb = MagicMock()
     widget.btn_composite = MagicMock()
     
@@ -482,6 +404,6 @@ def test_save_to_file_no_format(mock_get_save_file_name):
 
     widget.save_to_file()
 
-    # Check that the file dialog was called once
+    # Only check that the file dialog was called once
     mock_get_save_file_name.assert_called_once()
 
