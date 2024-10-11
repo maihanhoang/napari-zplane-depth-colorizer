@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 import os 
 from tifffile import imread
 from unittest.mock import patch, MagicMock
@@ -134,6 +133,40 @@ def test_equal_to_fiji_projection(make_napari_viewer):
     assert (np.isclose(proj_median, proj_fiji_median, atol=1)).all()
 
 
+def test_valid_neg_to_pos_shift_range(make_napari_viewer, capsys):
+    """Test valid shift range from negative to positive e.g. [-1, 3]"""
+    viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
+    widget.slices_1.setText("-2, 2")
+
+    # Just check that new layers were added to viewer and error message is empty
+    num_layers = len(viewer.layers)
+    widget.show_z_projections()
+    assert was_layer_added(num_layers, viewer)
+    assert capsys.readouterr().out is ''
+
+    # Just check that new layers were added to viewer
+    num_layers = len(viewer.layers)
+    widget.project_then_merge_stacks()
+    assert was_layer_added(num_layers, viewer)
+    assert capsys.readouterr().out is ''
+
+
+def test_invalid_slice_num(make_napari_viewer, capsys):
+    """Check if number of slices exceeds number of z-planes"""
+    viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
+    num_layers = len(viewer.layers)
+    widget.slices_1.setText("-5, 10")
+
+    widget.show_z_projections()
+    assert was_layer_added(num_layers, viewer) is False
+    assert ("Range input is not valid for stack 1.") in capsys.readouterr().out 
+    
+    widget.project_then_merge_stacks()
+    assert was_layer_added(num_layers, viewer) is False
+    assert ("Range input is not valid for stack 1.") in capsys.readouterr().out 
+
+    
+
 def test_no_input(make_napari_viewer, capsys):
     # Create widget
     viewer, widget = napari_viewer_widget(make_napari_viewer)
@@ -147,39 +180,31 @@ def test_no_input(make_napari_viewer, capsys):
 
 
 def test_invalid_image_dimensions_3D(make_napari_viewer, capsys):
+    """Check that image that was added to viewer does not appear in dropbox selection"""
     # Create widget
     viewer, widget = napari_viewer_widget(make_napari_viewer)
+    combobox_count = widget.input_layer.count()
 
     # Add 3D test image
     input_data_3D = np.random.random((10, 15, 50))
     viewer.add_image(input_data_3D)
     widget._update_input_options()
-    num_layers = len(viewer.layers)
-
-    widget.show_z_projections()
-    widget.project_then_merge_stacks()
-
-    # Check no layer was added and correct error message is shown
-    assert was_layer_added(num_layers, viewer) is False
-    assert ("Image must be 4D with dimensions TZYX.") in capsys.readouterr().out 
-
+    
+    assert widget.input_layer.count() == combobox_count
+    
 
 def test_invalid_image_dimensions_5D(make_napari_viewer, capsys):
+    """Check that image that was added to viewer does not appear in dropbox selection"""
     # Create widget
     viewer, widget = napari_viewer_widget(make_napari_viewer)
+    combobox_count = widget.input_layer.count()
 
     # Add 5D test image
     input_data_3D = np.random.random((10, 15, 50, 5, 3))
     viewer.add_image(input_data_3D)
     widget._update_input_options()
-    num_layers = len(viewer.layers)
-
-    widget.show_z_projections()
-    widget.project_then_merge_stacks()
-
-    # Check no layer was added and correct error message is shown
-    assert was_layer_added(num_layers, viewer) is False
-    assert ("Image must be 4D with dimensions TZYX.") in capsys.readouterr().out 
+    
+    assert widget.input_layer.count() == combobox_count
 
 
 def test_image_containing_nans(make_napari_viewer, capsys):
@@ -222,7 +247,7 @@ def test_invalid_params(make_napari_viewer, capsys):
     viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
     num_layers = len(viewer.layers)
     widget.slices_1.setText("1, 2")
-    widget.slices_2.setText("1, 2")
+    widget.slices_2.setText("")
 
     invalid_params = ["1; 2", "[1, 2]", "1to2", "1 & 2", "1, 2, 3", "1,     ", ""]
     for params in invalid_params:
@@ -241,6 +266,12 @@ def test_invalid_params_raw(make_napari_viewer, capsys):
     num_layers = len(viewer.layers)
 
     widget.slices_2.setText("12")
+    widget.project_then_merge_stacks()
+
+    assert was_layer_added(num_layers, viewer) is False
+    assert ("Range input is not valid for stack 2.") in capsys.readouterr().out 
+
+    widget.slices_2.setText("0, 1")
     widget.project_then_merge_stacks()
 
     assert was_layer_added(num_layers, viewer) is False
