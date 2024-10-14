@@ -1,13 +1,13 @@
-# napari-depth-visualizer
+# napari-zplane-depth-colorizer
 
-[![License BSD-3](https://img.shields.io/pypi/l/napari-depth-visualizer.svg?color=green)](https://github.com/maihanhoang/napari-depth-visualizer/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/napari-depth-visualizer.svg?color=green)](https://pypi.org/project/napari-depth-visualizer)
-[![Python Version](https://img.shields.io/pypi/pyversions/napari-depth-visualizer.svg?color=green)](https://python.org)
-[![tests](https://github.com/maihanhoang/napari-depth-visualizer/workflows/tests/badge.svg)](https://github.com/maihanhoang/napari-depth-visualizer/actions)
-[![codecov](https://codecov.io/gh/maihanhoang/napari-depth-visualizer/branch/main/graph/badge.svg)](https://codecov.io/gh/maihanhoang/napari-depth-visualizer)
-[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-depth-visualizer)](https://napari-hub.org/plugins/napari-depth-visualizer)
+[![License BSD-3](https://img.shields.io/pypi/l/napari-zplane-depth-colorizer.svg?color=green)](https://github.com/maihanhoang/napari-zplane-depth-colorizer/raw/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/napari-zplane-depth-colorizer.svg?color=green)](https://pypi.org/project/napari-zplane-depth-colorizer)
+[![Python Version](https://img.shields.io/pypi/pyversions/napari-zplane-depth-colorizer.svg?color=green)](https://python.org)
+[![tests](https://github.com/maihanhoang/napari-zplane-depth-colorizer/workflows/tests/badge.svg)](https://github.com/maihanhoang/napari-zplane-depth-colorizer/actions)
+[![codecov](https://codecov.io/gh/maihanhoang/napari-zplane-depth-colorizer/branch/main/graph/badge.svg)](https://codecov.io/gh/maihanhoang/napari-zplane-depth-colorizer)
+[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-zplane-depth-colorizer)](https://napari-hub.org/plugins/napari-zplane-depth-colorizer)
 
-A simple plugin to color and merge z-planes of 3D data to give depth information.
+A simple plugin for 3d+t files that visualizes z-planes in 3 colors for depth information. 
 
 ----------------------------------
 
@@ -23,15 +23,15 @@ https://napari.org/stable/plugins/index.html
 
 ## Installation
 
-You can install `napari-depth-visualizer` via [pip]:
+You can install `napari-zplane-depth-colorizer` via [pip]:
 
-    pip install napari-depth-visualizer
+    pip install napari-zplane-depth-colorizer
 
 
 
 To install latest development version :
 
-    pip install git+https://github.com/maihanhoang/napari-depth-visualizer.git
+    pip install git+https://github.com/maihanhoang/napari-zplane-depth-colorizer.git
 
 
 ## Contributing
@@ -42,7 +42,7 @@ the coverage at least stays the same before you submit a pull request.
 ## License
 
 Distributed under the terms of the [BSD-3] license,
-"napari-depth-visualizer" is free and open source software
+"napari-zplane-depth-colorizer" is free and open source software
 
 ## Issues
 
@@ -59,7 +59,7 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [Mozilla Public License 2.0]: https://www.mozilla.org/media/MPL/2.0/index.txt
 [cookiecutter-napari-plugin]: https://github.com/napari/cookiecutter-napari-plugin
 
-[file an issue]: https://github.com/maihanhoang/napari-depth-visualizer/issues
+[file an issue]: https://github.com/maihanhoang/napari-zplane-depth-colorizer/issues
 
 [napari]: https://github.com/napari/napari
 [tox]: https://tox.readthedocs.io/en/latest/
