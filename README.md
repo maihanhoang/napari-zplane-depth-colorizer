@@ -10,6 +10,10 @@
 A simple plugin for 3D+t files that visualizes z-planes in RGB colors for depth information. 
 The color-coding enhances the visibility of structures and can facilitate detection/annotations of e.g. cell divisions. 
 
+
+<video controls>
+  <source src="assets/plugin_demo.mp4" type="video/mp4">
+</video>
 ----------------------------------
 
 This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
@@ -21,6 +25,8 @@ https://github.com/napari/cookiecutter-napari-plugin#getting-started
 and review the napari docs for plugin developers:
 https://napari.org/stable/plugins/index.html
 -->
+
+
 
 ## Installation
 
