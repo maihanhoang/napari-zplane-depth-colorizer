@@ -84,7 +84,7 @@ def test_equal_to_fiji_projection(make_napari_viewer):
 
     # Add test input image
     file_dir = os.path.join(os.path.dirname(__file__), '../data')
-    input_data = imread(file_dir + "/3D+t_small.tif")
+    input_data = imread(file_dir + "/3D+t.tif")
     viewer.add_image(input_data)
     widget._update_input_options()
 
@@ -167,7 +167,6 @@ def test_invalid_slice_num(make_napari_viewer, capsys):
     assert ("Range input is not valid for stack 1.") in capsys.readouterr().out 
 
     
-
 def test_no_input(make_napari_viewer, capsys):
     # Create widget
     viewer, widget = napari_viewer_widget(make_napari_viewer)
@@ -181,7 +180,7 @@ def test_no_input(make_napari_viewer, capsys):
 
 
 def test_invalid_image_dimensions_3D(make_napari_viewer, capsys):
-    """Check that image that was added to viewer does not appear in dropbox selection"""
+    """Check that image that was added to viewer does not appear in input dropbox selection"""
     # Create widget
     viewer, widget = napari_viewer_widget(make_napari_viewer)
     combobox_count = widget.input_layer.count()
@@ -370,23 +369,24 @@ def test_save_to_file_rgb(mock_imwrite, mock_get_save_file_name):
     viewer = MagicMock()
     widget = ColorQWidget(viewer)
 
-    widget.btn_rgb = MagicMock()
+    widget.btn_multi_channel = MagicMock()
     widget.btn_composite = MagicMock()
     
     # Set RGB option
-    widget.btn_rgb.isChecked.return_value = True
+    widget.btn_multi_channel.isChecked.return_value = True
     widget.btn_composite.isChecked.return_value = False
 
     # Add mock image
-    input_data = np.random.random((10, 15, 50, 50, 3)) # TZYXS
-    viewer.layers.selection.active.data = input_data
+    output_data = np.random.randint(0, 255, size=(10, 15, 50, 50, 3), dtype='uint8') # TZYXS 
+    widget.output_layer.addItem("test_output", output_data)
+    widget.output_layer.setCurrentText("test_output")
 
     widget.save_to_file()
     saved_data = mock_imwrite.call_args[0][1]
 
     # Check that data was reshaped from TZYXS (S are RGB channels) --> TZCYX 
     assert saved_data.shape == (10, 15, 3, 50, 50)
-    assert np.array_equal(saved_data, np.transpose(input_data, (0, 1, 4, 2, 3)))
+    assert np.array_equal(saved_data, np.transpose(output_data, (0, 1, 4, 2, 3)))
 
 
 # Test saving image as composite
@@ -400,23 +400,24 @@ def test_save_to_file_composite(mock_imwrite, mock_get_save_file_name):
     viewer = MagicMock()
     widget = ColorQWidget(viewer)
 
-    widget.btn_rgb = MagicMock()
+    widget.btn_multi_channel = MagicMock()
     widget.btn_composite = MagicMock()
     
     # Set composite option
-    widget.btn_rgb.isChecked.return_value = False
+    widget.btn_multi_channel.isChecked.return_value = False
     widget.btn_composite.isChecked.return_value = True
 
     # Add mock image
-    input_data = np.random.random((10, 15, 50, 50, 3)) # TZYXS 
-    viewer.layers.selection.active.data = input_data
+    output_data = np.random.randint(0, 255, size=(10, 15, 50, 50, 3), dtype='uint8') # TZYXS 
+    widget.output_layer.addItem("test_output", output_data)
+    widget.output_layer.setCurrentText("test_output")
 
     widget.save_to_file()
     saved_data = mock_imwrite.call_args[0][1]
 
     # Check that the data was saved in TZYXS format
     assert saved_data.shape == (10, 15, 50, 50, 3)
-    assert np.array_equal(saved_data, input_data)
+    assert np.array_equal(saved_data, output_data)
 
 
 @patch('napari_zplane_depth_colorizer._widget.QFileDialog.getSaveFileName')
@@ -427,15 +428,14 @@ def test_save_to_file_no_format(mock_get_save_file_name):
     viewer = MagicMock()
     widget = ColorQWidget(viewer)
 
-    widget.btn_rgb = MagicMock()
+    widget.btn_multi_channel = MagicMock()
     widget.btn_composite = MagicMock()
     
     # Uncheck both buttons
-    widget.btn_rgb.isChecked.return_value = False
+    widget.btn_multi_channel.isChecked.return_value = False
     widget.btn_composite.isChecked.return_value = False
 
     widget.save_to_file()
 
-    # Only check that the file dialog was called once
-    mock_get_save_file_name.assert_called_once()
-
+    # Only check that the file dialog was not called
+    assert not mock_get_save_file_name.called

@@ -53,13 +53,15 @@ class ColorQWidget(QWidget):
         
         # Run buttons
         self.btn_create_z_projections = QPushButton('Show Z-Projections')
-        self.btn_merge_stacks = QPushButton("Project && Merge Stacks")
+        self.btn_merge_stacks = QPushButton("Merge to RGB")
 
         # Saving buttons
-        self.btn_composite = QRadioButton("Composite", self)
+        self.output_layer = QComboBox()
+
+        self.btn_composite = QRadioButton("Composite (TZYXS)", self)
         self.btn_composite.setChecked(True) # Set Composite as default  
-        self.btn_rgb = QRadioButton("Multi-Channel", self)
-        self.btn_save_file = QPushButton("Save selected output")
+        self.btn_multi_channel = QRadioButton("Multi-Channel (TZCYX)", self)
+        self.btn_save_file = QPushButton("Save RGB")
 
         # Set Layout
         self._set_grid_layout()     
@@ -75,6 +77,7 @@ class ColorQWidget(QWidget):
         self.btn_create_z_projections.clicked.connect(self.show_z_projections)  
         self.btn_merge_stacks.clicked.connect(self.project_then_merge_stacks) 
         
+        self.viewer.layers.events.removed.connect(self._update_output_options)
         self.btn_save_file.clicked.connect(self.save_to_file)
 
     # ================================================================
@@ -114,10 +117,12 @@ class ColorQWidget(QWidget):
         grid_layout.addWidget(self.btn_merge_stacks, 6, 1, 1, 2)
         
         # Output
-        grid_layout.addWidget(QLabel("<b>Save as</b>"), 7, 0)
-        grid_layout.addWidget(self.btn_rgb, 7, 2)
-        grid_layout.addWidget(self.btn_composite, 7, 1)
-        grid_layout.addWidget(self.btn_save_file, 8, 1, 1, 2)
+        grid_layout.addWidget(QLabel("<b>Output</b>"), 7, 0)
+        grid_layout.addWidget(self.output_layer, 7, 1, 1, 2)
+        grid_layout.addWidget(QLabel("<b>Save as</b>"), 8, 0)
+        grid_layout.addWidget(self.btn_composite, 8, 1)
+        grid_layout.addWidget(self.btn_multi_channel, 8, 2)
+        grid_layout.addWidget(self.btn_save_file, 9, 1, 1, 2)
 
         # Putting everything together
         grid_layout.setAlignment(Qt.AlignTop)
@@ -135,7 +140,7 @@ class ColorQWidget(QWidget):
 
 
     def _update_input_options(self):
-        """Update the combo box with the current image layers."""
+        """Update the input combo box if a valid (4D) image is added to viewer or removed"""
         # Save current selection,
         if self.input_layer is not None:
             current_text = self.input_layer.currentText()
@@ -149,6 +154,20 @@ class ColorQWidget(QWidget):
 
         if current_text is not None:
             self.input_layer.setCurrentText(current_text)
+
+
+    def _update_output_options(self):
+        """Update the output combo box if an output layer is removed"""
+        n_items = self.output_layer.count()
+        viewer_layers = [layer.name for layer in self.viewer.layers]
+
+        # Iterate through the items in reverse order to avoid index shift issues when removing items
+        for index in range(n_items - 1, -1, -1):
+            item_label = self.output_layer.itemText(index) 
+
+            # Remove item from ComboBox if layer was removed from viewer 
+            if item_label not in viewer_layers:
+                self.output_layer.removeItem(index)
 
 
     # ================================================================
@@ -216,55 +235,10 @@ class ColorQWidget(QWidget):
             return False
 
 
-    # def _project_stack_old(self, image, slice_range, proj_type_string):
-    #     ##### OG working code ######
-    #     """
-    #     Given that input has dimensions TZYX, projects stack along Z-axis
-    #     Outputs image of dimension TZYX
-    #     """
-        
-    #     proj_functions_dict = {
-    #         "Average Intensity": np.mean,
-    #         "Min Intensity": np.min,
-    #         "Max Intensity": np.max,
-    #         "Sum Slices": np.sum,
-    #         "Standard Deviation": np.std,
-    #         "Median": np.median
-
-    #     }
-
-    #     slice_start, slice_end = slice_range.split(",")
-    #     slice_num = slice_end - slice_start + 1 # inclusive range, Ex. [1, 3] -> 1, 2, 3
-    #     t, z, y, x = image.shape # Image dimensions
-    #     image_projected = np.zeros(image.shape)
-    #     image_projected = np.zeros(image.shape)
-    #     proj_function = proj_functions_dict[proj_type_string]
-
-    #     if proj_type_string == "Standard Deviation":
-    #         for i in range(z):
-    #             if i - slice_num < 0:
-    #                 image_projected[:, i] = proj_function(image[:, 0:i+slice_num], axis=1, ddof=1)
-    #             elif i + slice_num >= z:
-    #                 image_projected[:, i] = proj_function(image[:, i:z], axis=1, ddof=1)
-    #             else:
-    #                 image_projected[:, i] = proj_function(image[:, i-slice_num:i+slice_num], axis=1, ddof=1)
-
-    #     else:
-    #         for i in range(z):
-    #             if i - slice_num < 0:
-    #                 image_projected[:, i] = proj_function(image[:, 0:i+slice_num], axis=1)
-    #             elif i + slice_num >= z:
-    #                 image_projected[:, i] = proj_function(image[:, i:z], axis=1)
-    #             else:
-    #                 image_projected[:, i] = proj_function(image[:, i-slice_num:i+slice_num], axis=1)
-        
-    #     return image_projected
-
-
     def _project_stack(self, image, slice_range, proj_type_string):
         """
         Given that input has dimensions TZYX, projects stack along Z-axis
-        Outputs image of dimension TZYX
+        Outputs image of same dimension
         """
 
         proj_functions_dict = {
@@ -376,48 +350,10 @@ class ColorQWidget(QWidget):
             for stack, img in enumerate(images_projected):
                 name = image_layer.name + "_zproj_stack" + str(stack+1)
                 self.viewer.add_image(img, name=name) 
-    
-
-    # def project_then_merge_stacks_old(self):
-    #     if not self._is_input_image_valid():
-    #         return
-    #     images_projected = self.compute_z_projections()
-    #     if images_projected == None:
-    #         return
-    #     # Normalize; RGB range [0, 255]
-    #     images_projected_normed = [(img / np.max(img) * 255).astype('uint8') for img in images_projected]         
         
-    #     image_input = self.input_layer.currentData().data
-    #     t, z, y, x = image_input.shape 
-    #     result = np.zeros((t, z, y, x, 3))
-
-    #     proj_types_all = [self.proj_type_1, self.proj_type_2, self.proj_type_3]
-    #     slice_input_all = [self.slices_1.text(), self.slices_2.text(), self.slices_3.text()]
-
-    #     for stack in range(3):
-    #         if proj_types_all[stack].currentText() == "Raw" and slice_input_all[stack] == "":
-    #             slice_start, slice_end = (0, 0)
-    #         elif proj_types_all[stack].currentText() == "Raw" and slice_input_all[stack].isspace():
-    #             slice_start, slice_end = (0, 0)
-    #         else:
-    #             slice_start, slice_end = slice_input_all[stack].split(",")
-            
-    #         if int(slice_start) == 0 and int(slice_end) == 0:
-    #             result[:, :, :, :, stack] = images_projected_normed[stack]
-    #         elif int(slice_start) >= 0 and int(slice_end) > 0: # positive numbers and 0, then shift by range end
-    #             idx = int(slice_end)
-    #             result[:, :idx, :, :, stack] = np.zeros((t, idx, y, x))
-    #             result[:, idx:, :, :, stack] = images_projected_normed[stack][:, :z-idx]
-    #         elif int(slice_start) < 0 and int(slice_end) <= 0: # negative numbers and 0, then shift by range start
-    #             idx = -int(slice_start)
-    #             result[:, :z-idx, :, :, stack] = images_projected_normed[stack][:, idx:]
-    #             result[:, z-idx:, :, :, stack] = np.zeros((t, idx, y, x))
-    #         # TODO: negative and positive???? 
-
-    #     self.viewer.add_image(result.astype("uint8"))
-    
 
     def project_then_merge_stacks(self):
+        """Project each stack and merge to RGB"""
         if not self._is_input_image_valid():
             return
         images_projected = self.compute_z_projections()
@@ -433,18 +369,27 @@ class ColorQWidget(QWidget):
         for stack in range(3):
             result[:, :, :, :, stack] = images_projected_normed[stack]
 
-        self.viewer.add_image(result.astype("uint8"))
+        # Add output to viewer and as option for saving in QComboBox
+        output_name = self.input_layer.currentData().name + "_rgb"
+        self.viewer.add_image(result.astype("uint8"), name=output_name)
+        self.output_layer.addItem(output_name, result.astype("uint8"))
+        
     
     # ================================================================
     # Save to file
     # ================================================================
     def save_to_file(self):
+        """Save RGB either as Composite (TZYXS) or multi-channel format (TZCYX)"""
+        if self.output_layer.currentData() is None:
+            return
+
         # Open file dialog to select a file to save
         options = QFileDialog.Options()
-        fileName, _ = QFileDialog.getSaveFileName(self, "Save File", "", "All Files (*);;Tif Files (*.tif, *.tiff)", options=options)
-        
-        if fileName:  
-            if self.btn_rgb.isChecked():
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save File", "", "All Files (*);;Tif Files (*.tif, *.tiff)", options=options)
+        output_image = np.asanyarray(self.output_layer.currentData().data, dtype='uint8')
+
+        if file_name:  
+            if self.btn_multi_channel.isChecked():
                 metadata = {
                     'axes': 'TZCYX',
                     'Composite mode': 'composite',
@@ -453,14 +398,14 @@ class ColorQWidget(QWidget):
                     }
                 }
                 # Need to reshape image from 'TZYXS' (S are RGB channels) --> 'TZCYX'
-                reshaped_image = np.transpose(self.viewer.layers.selection.active.data, (0, 1, 4, 2, 3))
-                tifffile.imwrite(fileName, reshaped_image, metadata=metadata, imagej=True)
+                reshaped_image = np.transpose(output_image, (0, 1, 4, 2, 3))
+                tifffile.imwrite(file_name, reshaped_image, metadata=metadata, imagej=True)
             elif self.btn_composite.isChecked():
                 metadata = {
                     'axes': 'TZYXS',
                     'Composite mode': 'composite',
                 }
-                tifffile.imwrite(fileName, self.viewer.layers.selection.active.data, metadata=metadata, imagej=True)
+                tifffile.imwrite(file_name, output_image, metadata=metadata, imagej=True)
             else:
                 show_info("Could not be saved. Select format to be saved.")
                 return

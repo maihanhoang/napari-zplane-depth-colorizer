@@ -7,7 +7,8 @@
 [![codecov](https://codecov.io/gh/maihanhoang/napari-zplane-depth-colorizer/branch/main/graph/badge.svg)](https://codecov.io/gh/maihanhoang/napari-zplane-depth-colorizer)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-zplane-depth-colorizer)](https://napari-hub.org/plugins/napari-zplane-depth-colorizer)
 
-A simple plugin for 3d+t files that visualizes z-planes in 3 colors for depth information. 
+A simple plugin for 3D+t files that visualizes z-planes in RGB colors for depth information. 
+The color-coding enhances the visibility of structures and can facilitate detection/annotations of e.g. cell divisions. 
 
 ----------------------------------
 
