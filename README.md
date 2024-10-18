@@ -11,13 +11,9 @@ A simple plugin for 3D+t (TZYX) files that visualizes z-planes in RGB colors for
 The color-coding enhances the visibility of structures and can facilitate detection/annotations of e.g. cell divisions. 
 
 
-<video controls>
-  <source src="assets/plugin_demo.mp4" type="video/mp4">
-</video>
-----------------------------------
+<img src="./assets/plugin_demo.gif" alt="Demo GIF" style="width:100%;">
 
-This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
-
+The exemplary image shown in the demo can be found at `src/napari_zplane_depth_colorizer/data/3D+t.tif`.
 <!--
 Don't miss the full getting started guide to set up your new package:
 https://github.com/napari/cookiecutter-napari-plugin#getting-started
