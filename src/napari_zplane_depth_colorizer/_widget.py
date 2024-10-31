@@ -217,19 +217,49 @@ class ColorQWidget(QWidget):
         return True
     
 
-    def _is_slice_input_valid_raw(self, range_input):
-        """Checks that slice input for Raw is [0, 0], empty or only spaces because no z-proj is applied"""
-        if range_input == "":
-            return True
-        elif range_input.isspace():
-            return True
+    def _is_slice_input_valid_raw(self, image, range_input):
+        """
+        Valid slice inputs are different for Raw, because no z-proj is applied.
+        Checks that slice input for Raw is [n, n] """
         
+        # Image dimensions
+        t, z, y, x = image.shape
         range = range_input.replace(" ", "") # remove all whitespace
+        
         if len(range.split(sep=',')) != 2 or "" in range.split(sep=','):
             return False
         
-        range_start, range_end = map(int, range.split(sep=','))
-        if range_start == 0 and range_end == 0:
+        range_start, range_end = map(int, range.split(sep=','))        
+        
+        if range_start != range_end:
+            return False
+        
+        # Slice index should not exceed size of stack
+        if np.abs(range_start) >= z or np.abs(range_end) >= z:
+            return False
+        
+        return True
+        
+
+    def _is_slice_input_single(self, range_input):
+        """Checks whether Raw has single number as input"""
+        range = range_input.replace(" ", "") # remove all whitespace   
+        if len(range.split(sep=',')) == 1:
+            # Check if it's a number
+            try:
+                int(range) # Attempt to convert to int
+                return True
+            except ValueError:
+                return False
+        else:
+            return False
+        
+
+    def _is_slice_input_empty_or_space(self, range_input):
+        """ Checks whether slice input for Raw is empty or only spaces"""
+        if range_input == "":
+            return True
+        elif range_input.isspace():
             return True
         else:
             return False
@@ -242,6 +272,7 @@ class ColorQWidget(QWidget):
         """
 
         proj_functions_dict = {
+        "Raw": np.mean, # Not really the mean but the mean of one plane equals the plane itself; Using np.mean as function here to make projections easier and account for shift in raw stack 
         "Average Intensity": np.mean,
         "Min Intensity": np.min,
         "Max Intensity": np.max,
@@ -305,8 +336,8 @@ class ColorQWidget(QWidget):
             return False
         
         return True
-
-    
+        
+        
     def compute_z_projections(self):
         """Computes z-projections for all 3 stacks; output is None for stacks where slice input is invalid"""
         image = self.input_layer.currentData().data
@@ -317,7 +348,13 @@ class ColorQWidget(QWidget):
         # Check input range is valid for all 3 stacks
         for stack in range(3):    
             if proj_types_all[stack].currentText() == "Raw":
-                if not self._is_slice_input_valid_raw(slice_input_all[stack]):
+                if self._is_slice_input_single(slice_input_all[stack]): 
+                    # If input is single number, set same number for range_start and range_end; facilitates computations
+                    slice_input_all[stack] = slice_input_all[stack] + ',' + slice_input_all[stack]
+                elif self._is_slice_input_empty_or_space(slice_input_all[stack]): 
+                    # If input is empty or only spaces, set [0, 0] for range_start and range_end
+                    slice_input_all[stack] = "0, 0"
+                if not self._is_slice_input_valid_raw(image, slice_input_all[stack]):
                     show_info("Range input is not valid for stack {}." .format(stack+1))
                     return
             else:
@@ -327,10 +364,10 @@ class ColorQWidget(QWidget):
 
         # Compute Projections
         for stack in range(3):    
-            if proj_types_all[stack].currentText() == "Raw":
-                img_projected = self.input_layer.currentData().data
-            else:
-                img_projected = self._project_stack(image, slice_input_all[stack], proj_types_all[stack].currentText())
+            # if proj_types_all[stack].currentText() == "Raw":
+            #     img_projected = self.input_layer.currentData().data
+            # else:
+            img_projected = self._project_stack(image, slice_input_all[stack], proj_types_all[stack].currentText())
             outputs.append(img_projected)             
         return outputs
     
@@ -346,7 +383,6 @@ class ColorQWidget(QWidget):
             return
         else:
             # images_projected_normed = [(img / np.max(img) * 255).astype('uint8') for img in images_projected] 
-            # for stack, img in enumerate(images_projected_normed):
             for stack, img in enumerate(images_projected):
                 name = image_layer.name + "_zproj_stack" + str(stack+1)
                 self.viewer.add_image(img, name=name) 

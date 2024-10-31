@@ -265,13 +265,13 @@ def test_invalid_params_raw(make_napari_viewer, capsys):
     viewer, widget, _ = napari_viewer_widget_with_valid_test_image(make_napari_viewer)
     num_layers = len(viewer.layers)
 
-    widget.slices_2.setText("12")
+    widget.slices_2.setText("15")
     widget.project_then_merge_stacks()
 
     assert was_layer_added(num_layers, viewer) is False
     assert ("Range input is not valid for stack 2.") in capsys.readouterr().out 
 
-    widget.slices_2.setText("0, 1")
+    widget.slices_2.setText("-1, 0")
     widget.project_then_merge_stacks()
 
     assert was_layer_added(num_layers, viewer) is False
