@@ -99,13 +99,13 @@ class ColorQWidget(QWidget):
         grid_layout.addWidget(QLabel("<b>Stack 3 (B)</b>"), 4, 0)
 
         # Create 2. column "Projection Type"
-        grid_layout.addWidget(QLabel("<b>Projection Type</b>"), 1, 1)
+        grid_layout.addWidget(QLabel("<b>Z-Projection Type</b>"), 1, 1)
         grid_layout.addWidget(self.proj_type_1, 2, 1)
         grid_layout.addWidget(self.proj_type_2, 3, 1)
         grid_layout.addWidget(self.proj_type_3, 4, 1)
 
         # # Create 3. column "Slices"
-        grid_layout.addWidget(QLabel("<b>Shift Range</b>"), 1, 2)
+        grid_layout.addWidget(QLabel("<b>Depth Range</b>"), 1, 2)
         grid_layout.addWidget(self.slices_1, 2, 2)
         grid_layout.addWidget(self.slices_2, 3, 2)
         grid_layout.addWidget(self.slices_3, 4, 2)
@@ -132,7 +132,7 @@ class ColorQWidget(QWidget):
     # Callbacks
     # ================================================================
     def _on_text_change(self):
-        """Update shift range params"""
+        """Update depth range params"""
         slices_all = [self.slices_1, self.slices_2, self.slices_3]
         for stack in range(3):
             entered_text = slices_all[stack].text()
@@ -175,7 +175,7 @@ class ColorQWidget(QWidget):
     # ================================================================
     def _is_slice_input_valid_zproj(self, image, range_input):
         """
-        Checks whether the input for shift range is valid for z-projectiosn. 
+        Checks whether the input for depth range is valid for z-projectiosn. 
         Special case for "Raw" because no z-projection is applied. Input for Raw is checked in _is_slice_input_valid_raw
         Checks
         1. that only numbers, "+", "-", "," and empty space are valid input
