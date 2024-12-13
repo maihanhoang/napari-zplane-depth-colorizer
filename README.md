@@ -1,24 +1,13 @@
 This plugin can colorize and provide depth information on single-channel 3D+t files. The color coding enhances the visibility of structures and the detection/annotations of dynamic events. 
 
-<img src="./assets/plugin_demo.gif" alt="Demo GIF" style="width:100%;">
+<p align="middle">
+  <img src="./assets/plugin_demo.gif" width="100%" />
+</p>
 
 Identifying dynamic events such as cellular divisions can be challenging in 3D time-lapses of developing tissues such as organoids or embryos. Visualizing and annotating such events in dense 3D stacks obtained by light-sheet or two-photon microscopy where nuclei are almost in contact is especially challenging. With this visualization method, the tissue section can be "augmented" in 3D by visualizing the surrounding tissue layers in different colors. 
 
-This plugin is for bioimaging researchers who need to annotate events in time-lapses of dense tissues. The plugin supports 3D+t stacks in the TZYX format. 
+This plugin is for bioimaging researchers who need to annotate events in time lapses of dense tissues. It supports 3D+t stacks in the TZYX format. 
 
-
-
-## Installation
-
-You can install `napari-zplane-depth-colorizer` via [pip]:
-
- pip install napari-zplane-depth-colorizer
-
-
-
-To install the latest development version :
-
- pip install git+https://github.com/maihanhoang/napari-zplane-depth-colorizer.git
 
 ## Quick Start
 A sample file can be found at `src/napari_zplane_depth_colorizer/data/3D+t.tif`
@@ -34,7 +23,7 @@ A sample file can be found at `src/napari_zplane_depth_colorizer/data/3D+t.tif`
 There are two depth augmentation parameters for each RGB color channel: Z-Projection Type and Depth Range. Depth Range indicates which and how many z-planes are projected for a channel. The Z-Projection Type specifies which type of projection is applied. The **How it works** section below might help you understand the parameters better.
 
 ### Z-Projection Types 
-The Z-projection types are the same ones that can be found in [Fiji](https://imagej.net/software/fiji/), except for "Raw". "Raw" is the original stack without any projection.
+The Z-projection types are the same ones found in [Fiji](https://imagej.net/software/fiji/), except for "Raw. "Raw is the original stack without any projection.
 
 ### Depth Range
 - Depth Range is a range and consists of two numbers [range_start, range_end]. The range is inclusive and requires range_start <= range_end. 
@@ -53,7 +42,7 @@ The Z-projection types are the same ones that can be found in [Fiji](https://ima
 ## How it works
 ### Creating a colored image from a single-channel stack
 
-To colorize a single-channel stack, multiple z-planes are assigned to different color (RGB) channels and then overlaid to create a composite colored image. For a simple z-stack with three planes, the 1. plane is assigned to red, the 2. to green, and the 3. plane to blue. They are overlaid/merged to create a single composite RGB-color plane. In the composite image, multiple z-planes are displayed at once, with the colors providing the depth information. In this example, red indicates that cells are in the upper, while blue cells are in the deeper z-planes. The colors make it easier to detect and track cells that move or split in the z-direction.  
+To colorize a single-channel stack, multiple z-planes are assigned to different color (RGB) channels and then overlaid to create a composite colored image. For a simple z-stack with three planes, the 1. plane is assigned to red, the 2. to green, and the 3. plane to blue. They are overlaid/merged to create a single composite RGB-color plane. In the composite image, multiple z-planes are displayed simultaneously, with the colors providing the depth information. In this example, red indicates that cells are in the upper, while blue cells are in the deeper z-planes. The colors make it easier to detect and track cells that move or split in the z-direction.  
 
 
 <!---------
@@ -100,10 +89,7 @@ On the left is an image of a single plane of an organoid, and on the right is th
 </p>
 
 ## Acknowledgements
-The visualization method implemented in this plugin was developed by [Sham Tlili](https://scholar.google.com/citations?user=8ykCpTIAAAAJ&hl=fr).
-
-## Acknowledgements
-The visualization method implemented in this plugin was developed by [Sham Tlili](https://scholar.google.com/citations?user=8ykCpTIAAAAJ&hl=fr).
+[Sham Tlili](https://scholar.google.com/citations?user=8ykCpTIAAAAJ&hl=fr) provided the sample data and developed the visualization method implemented in this plugin.
 
 ## Contributing
 
