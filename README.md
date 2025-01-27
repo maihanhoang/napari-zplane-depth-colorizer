@@ -1,3 +1,26 @@
+# napari-zplane-depth-colorizer
+
+[![License BSD-3](https://img.shields.io/pypi/l/napari-zplane-depth-colorizer.svg?color=green)](https://github.com/maihanhoang/napari-zplane-depth-colorizer/raw/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/napari-zplane-depth-colorizer.svg?color=green)](https://pypi.org/project/napari-zplane-depth-colorizer)
+[![Python Version](https://img.shields.io/pypi/pyversions/napari-zplane-depth-colorizer.svg?color=green)](https://python.org)
+[![tests](https://github.com/maihanhoang/napari-zplane-depth-colorizer/workflows/tests/badge.svg)](https://github.com/maihanhoang/napari-zplane-depth-colorizer/actions)
+[![codecov](https://codecov.io/gh/maihanhoang/napari-zplane-depth-colorizer/branch/main/graph/badge.svg)](https://codecov.io/gh/maihanhoang/napari-zplane-depth-colorizer)
+[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-zplane-depth-colorizer)](https://napari-hub.org/plugins/napari-zplane-depth-colorizer)
+
+A simple plugin for 3d+t files that visualizes z-planes in 3 colors for depth information. 
+
+----------------------------------
+
+This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
+
+<!--
+Don't miss the full getting started guide to set up your new package:
+https://github.com/napari/cookiecutter-napari-plugin#getting-started
+
+and review the napari docs for plugin developers:
+https://napari.org/stable/plugins/index.html
+-->
+
 This plugin can colorize and provide depth information on single-channel 3D+t files. The color coding enhances the visibility of structures and the detection/annotations of dynamic events. 
 
 <p align="middle">
@@ -8,6 +31,15 @@ Identifying dynamic events such as cellular divisions can be challenging in 3D t
 
 This plugin is for bioimaging researchers who need to annotate events in time lapses of dense tissues. It supports 3D+t stacks in the TZYX format. 
 
+## Installation
+
+You can install `napari-zplane-depth-colorizer` via [pip]:
+
+    pip install napari-zplane-depth-colorizer
+
+To install latest development version :
+
+    pip install git+https://github.com/maihanhoang/napari-zplane-depth-colorizer.git
 
 ## Quick Start
 A sample file can be found at `src/napari_zplane_depth_colorizer/data/3D+t.tif`
